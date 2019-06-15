@@ -1,0 +1,35 @@
+<?xml version='1.0'?>
+<sdf version="1.4">
+<!--Box model taken from http://gazebosim.org/tutorials?tut=build_model -->
+<model name="box_model">
+    <static>true</static>
+    <pose>0 0 0 0 0 0</pose>
+    <link name="link">
+        <inertial>
+            <mass>1.0</mass>
+            <inertia>
+                <ixx>0.083</ixx>
+                <ixy>0.0</ixy>
+                <ixz>0.0</ixz>
+                <iyy>0.083</iyy>
+                <iyz>0.0</iyz>
+                <izz>0.083</izz>
+            </inertia>
+        </inertial>
+        <collision name="collision">
+            <geometry>
+                <box>
+                    <size>0.1 0.1 0.1</size>
+                </box>
+            </geometry>
+        </collision>
+        <visual name="visual">
+            <geometry>
+                <box>
+                    <size>0.1 0.1 0.1</size>
+                </box>
+            </geometry>
+        </visual>
+    </link>
+</model>
+</sdf>
