@@ -125,7 +125,13 @@ class RopodNavDiscreteEnv(RopodEnv):
             self.insert_model(model)
 
     def sample_model_parameters(self) -> Tuple[Tuple, Tuple, Tuple]:
-        '''Returns
+        '''Generates a random pose as well as collision and visual sizes
+        for a dynamic model. The parameters are generated as follows:
+        * for the pose, only the x and y positions and the z orientation are set;
+          the position are sampled from the environment boundaries specified in
+          self.env_config, while the orientation is sampled between -pi and pi radians
+        * the collision sizes are sampled between 0.2 and 1.0 in all three directions
+        * the visual size is the same as the collision size
         '''
         position_x = np.random.uniform(self.env_config.boundaries[0][0],
                                        self.env_config.boundaries[0][1])
