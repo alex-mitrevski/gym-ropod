@@ -14,14 +14,15 @@ import gazebo_msgs.srv as gazebo_srvs
 from gym_ropod.models.model_description import ModelDescription
 
 class RopodEnv(gym.Env):
-    '''An abstract base class for ROPOD environments. Reuses most of
+    '''An abstract base class for ROPOD environments. Builds upon
     https://github.com/ascane/gym-gazebo-hsr/blob/master/gym_gazebo_hsr/envs/gazebo_env.py
 
     '''
     def __init__(self, launch_file_path: str,
                  roscore_port: str='11311',
                  reset_sim_srv_name: str='/gazebo/reset_world',
-                 spawn_model_srv_name: str='/gazebo/spawn_sdf_model'):
+                 spawn_model_srv_name: str='/gazebo/spawn_sdf_model',
+                 delete_model_srv_name: str='/gazebo/delete_model'):
         '''Raises an IOError if the specified launch file path does not exist.
 
         Keyword arguments:
@@ -31,10 +32,21 @@ class RopodEnv(gym.Env):
                                    (default "/gazebo/reset_world")
         spawn_model_srv_name: str -- name of a service for adding models to the environment
                                      (default "/gazebo/spawn_sdf_model")
+        delete_model_srv_name: str -- name of a service for deleting models from the environment
+                                      (default "/gazebo/delete_model")
 
         '''
         if not os.path.exists(launch_file_path):
             raise IOError('{0} is not a valid launch file path'.format(launch_file_path))
+
+        self.roscore_process = None
+        self.sim_process = None
+        self.reset_sim_proxy = None
+        self.spawn_model_proxy = None
+        self.delete_model_proxy = None
+        self.sim_vis_process = None
+
+        self.dynamic_model_names = []
 
         print(colored('[RopodEnv] Launching roscore...', 'green'))
         self.roscore_process = subprocess.Popen(['roscore', '-p', roscore_port])
@@ -56,7 +68,10 @@ class RopodEnv(gym.Env):
         self.spawn_model_proxy = rospy.ServiceProxy(spawn_model_srv_name, gazebo_srvs.SpawnModel)
         print(colored('[RopodEnv] Service {0} is up'.format(spawn_model_srv_name), 'green'))
 
-        self.sim_vis_process = None
+        print(colored('[RopodEnv] Waiting for service {0}'.format(delete_model_srv_name), 'green'))
+        rospy.wait_for_service(delete_model_srv_name)
+        self.delete_model_proxy = rospy.ServiceProxy(delete_model_srv_name, gazebo_srvs.DeleteModel)
+        print(colored('[RopodEnv] Service {0} is up'.format(delete_model_srv_name), 'green'))
 
         print(colored('[RopodEnv] Initialising ROS node', 'green'))
         rospy.init_node('gym')
@@ -74,11 +89,15 @@ class RopodEnv(gym.Env):
 
     @abstractmethod
     def reset(self):
-        '''Resets the simulation environment.
+        '''Resets the simulation environment by removing all models
+        that were dynamically added and resetting the state of all
+        initial models.
         '''
-        raise NotImplementedError()
+        for model_name in self.dynamic_model_names:
+            self.delete_model(model_name)
+        self.reset_sim_proxy()
 
-    def render(self, mode: str='human'):
+    def render(self, mode: str='human') -> None:
         '''Displays the current environment. Opens up a simulation process
         if the environment is being rendered for the first time.
 
@@ -89,7 +108,7 @@ class RopodEnv(gym.Env):
         if self.sim_vis_process is None or self.sim_vis_process.poll() is not None:
             self.sim_vis_process = subprocess.Popen('gzclient')
 
-    def close(self):
+    def close(self) -> None:
         '''Closes the simulation client and terminates the simulation and roscore processes.
         '''
         self._close_sim_client()
@@ -105,6 +124,10 @@ class RopodEnv(gym.Env):
         model: ModelDescription -- model parameters
 
         '''
+        if model.name in self.dynamic_model_names:
+            print(colored('[RopodEnv] Removing existing model "{0}"'.format(model.name), 'yellow'))
+            self.delete_model(model.name)
+
         model_request = gazebo_srvs.SpawnModelRequest()
         model_request.model_name = model.name
         model_request.model_xml = model.as_string()
@@ -116,9 +139,31 @@ class RopodEnv(gym.Env):
         model_request.initial_pose.orientation.z = model.pose[1][2]
         model_request.initial_pose.orientation.w = model.pose[1][3]
 
-        print(colored('[RopodEnv] Inserting model {0}'.format(model.name), 'green'))
+        print(colored('[RopodEnv] Inserting model "{0}"'.format(model.name), 'green'))
         self.spawn_model_proxy(model_request)
-        print(colored('[RopodEnv] Model {0} inserted'.format(model.name), 'green'))
+        print(colored('[RopodEnv] Model "{0}" inserted'.format(model.name), 'green'))
+
+        self.dynamic_model_names.append(model.name)
+
+    def delete_model(self, model_name: str) -> None:
+        '''Removes a model from the simulation.
+
+        Keyword arguments:
+        model_name: str -- name of the model to remove
+
+        '''
+        if model_name not in self.dynamic_model_names:
+            print(colored('[RopodEnv] Model "{0}" does not exist, so cannot remove it', 'yellow'))
+            return
+
+        delete_model_request = gazebo_srvs.DeleteModelRequest()
+        delete_model_request.model_name = model_name
+
+        print(colored('[RopodEnv] Deleting model "{0}"'.format(model_name), 'green'))
+        self.delete_model_proxy(delete_model_request)
+        print(colored('[RopodEnv] Model "{0}" deleted'.format(model_name), 'green'))
+
+        self.dynamic_model_names.remove(model_name)
 
     def _close_sim_client(self):
         '''Stops the process running the simulation client.
