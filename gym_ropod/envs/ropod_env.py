@@ -10,6 +10,7 @@ import gym
 import rospy
 import std_srvs.srv as std_srvs
 import gazebo_msgs.srv as gazebo_srvs
+import transforms3d as tf
 
 from gym_ropod.models.model_description import ModelDescription
 
@@ -131,13 +132,16 @@ class RopodEnv(gym.Env):
         model_request = gazebo_srvs.SpawnModelRequest()
         model_request.model_name = model.name
         model_request.model_xml = model.as_string()
+
         model_request.initial_pose.position.x = model.pose[0][0]
-        model_request.initial_pose.position.x = model.pose[0][1]
-        model_request.initial_pose.position.x = model.pose[0][2]
-        model_request.initial_pose.orientation.x = model.pose[1][0]
-        model_request.initial_pose.orientation.y = model.pose[1][1]
-        model_request.initial_pose.orientation.z = model.pose[1][2]
-        model_request.initial_pose.orientation.w = model.pose[1][3]
+        model_request.initial_pose.position.y = model.pose[0][1]
+        model_request.initial_pose.position.z = model.pose[0][2]
+
+        quat_orientation = tf.euler.euler2quat(*model.pose[1])
+        model_request.initial_pose.orientation.w = quat_orientation[0]
+        model_request.initial_pose.orientation.x = quat_orientation[1]
+        model_request.initial_pose.orientation.y = quat_orientation[2]
+        model_request.initial_pose.orientation.z = quat_orientation[3]
 
         print(colored('[RopodEnv] Inserting model "{0}"'.format(model.name), 'green'))
         self.spawn_model_proxy(model_request)

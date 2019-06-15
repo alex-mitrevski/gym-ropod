@@ -12,7 +12,7 @@ class ModelDescription(object):
     '''
     def __init__(self, name: str, sdf_path: str,
                  pose: Tuple[Tuple[float, float, float],
-                             Tuple[float, float, float, float]]=None,
+                             Tuple[float, float, float]]=None,
                  collision_size: Tuple[float, float, float]=None,
                  visual_size: Tuple[float, float, float]=None):
         '''Keyword arguments:
@@ -21,8 +21,8 @@ class ModelDescription(object):
         sdf_path: str -- path to the model SDF
         pose: Tuple -- a 3D pose representation in the form
                        (position, orientation), where position = (x, y, z)
-                       and the orientation is represented as a quaternion, namely
-                       orientation = (x, y, z, w)
+                       and the orientation is represented using Euler angles, namely
+                       orientation = (x, y, z)
         collision_size: Tuple -- size of the collision model in an (x, y, z) format
         visual_size: Tuple -- size of the visual model in an (x, y, z) format
 
@@ -37,7 +37,7 @@ class ModelDescription(object):
         if pose is not None:
             self.pose = pose
         else:
-            self.pose = ((0., 0., 0.), (0., 0., 0., 1.))
+            self.pose = ((0., 0., 0.), (0., 0., 0.))
 
         self.collision_size = None
         if collision_size is not None:
@@ -84,7 +84,7 @@ class PrimitiveModel(ModelDescription):
     '''
     def __init__(self, name: str, sdf_path: str, model_type: str='box',
                  pose: Tuple[Tuple[float, float, float],
-                             Tuple[float, float, float, float]]=None,
+                             Tuple[float, float, float]]=None,
                  collision_size: Tuple[float, float, float]=None,
                  visual_size: Tuple[float, float, float]=None):
         '''Keyword arguments:
@@ -94,8 +94,8 @@ class PrimitiveModel(ModelDescription):
         model_type: str -- geometry type (default "box")
         pose: Tuple -- a 3D pose representation in the form
                        (position, orientation), where position = (x, y, z)
-                       and the orientation is represented as a quaternion, namely
-                       orientation = (x, y, z, w)
+                       and the orientation is represented using Euler angles, namely
+                       orientation = (x, y, z)
         collision_size: Tuple -- size of the collision model in an (x, y, z) format
         visual_size: Tuple -- size of the visual model in an (x, y, z) format
 
@@ -113,6 +113,12 @@ class PrimitiveModel(ModelDescription):
         # we look for the link element of the model
         model_element = updated_description.find('model')
         link_element = model_element.find('link')
+
+        # we set the pose of the object
+        pose_element = model_element.find('pose')
+        pose_text = ' '.join([str(x) for x in self.pose[0]]) + ' ' + \
+                    ' '.join([str(x) for x in self.pose[1]])
+        pose_element.text = pose_text.strip()
 
         # we set the size of the collision model
         collision_element = link_element.find('collision')
