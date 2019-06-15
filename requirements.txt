@@ -1,4 +1,5 @@
 gym
+numpy
 transforms3d
 termcolor
 rospkg
