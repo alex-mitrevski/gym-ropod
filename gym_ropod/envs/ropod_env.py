@@ -4,15 +4,15 @@ import os
 import subprocess
 import time
 from termcolor import colored
+import transforms3d as tf
 
 import gym
 
 import rospy
 import std_srvs.srv as std_srvs
 import gazebo_msgs.srv as gazebo_srvs
-import transforms3d as tf
 
-from gym_ropod.models.model_description import ModelDescription
+from gym_ropod.utils.model import ModelDescription
 
 class RopodEnv(gym.Env):
     '''An abstract base class for ROPOD environments. Builds upon
