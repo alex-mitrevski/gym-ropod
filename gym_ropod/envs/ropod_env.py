@@ -4,24 +4,35 @@ import os
 import subprocess
 import time
 from termcolor import colored
-import std_srvs.srv as std_srvs
 
 import gym
+
 import rospy
+import std_srvs.srv as std_srvs
+import gazebo_msgs.srv as gazebo_srvs
+
+from gym_ropod.models.model_description import ModelDescription
 
 class RopodEnv(gym.Env):
     '''An abstract base class for ROPOD environments. Reuses most of
     https://github.com/ascane/gym-gazebo-hsr/blob/master/gym_gazebo_hsr/envs/gazebo_env.py
 
-    Constructor arguments:
-    launch_file_path: str -- absolute path to a launch file that starts the ROPOD simulation
-
-    The constructor raises an IOError if the specified launch file path does not exist.
-
     '''
     def __init__(self, launch_file_path: str,
                  roscore_port: str='11311',
-                 reset_sim_srv_name: str='/gazebo/reset_world'):
+                 reset_sim_srv_name: str='/gazebo/reset_world',
+                 spawn_model_srv_name: str='/gazebo/spawn_sdf_model'):
+        '''Raises an IOError if the specified launch file path does not exist.
+
+        Keyword arguments:
+        launch_file_path: str -- absolute path to a launch file that starts the ROPOD simulation
+        roscore_port: str -- port on which the ROS master should be run (default "11311")
+        reset_sim_srv_name: str -- name of a service that resets the simulated environment
+                                   (default "/gazebo/reset_world")
+        spawn_model_srv_name: str -- name of a service for adding models to the environment
+                                     (default "/gazebo/spawn_sdf_model")
+
+        '''
         if not os.path.exists(launch_file_path):
             raise IOError('{0} is not a valid launch file path'.format(launch_file_path))
 
@@ -39,6 +50,11 @@ class RopodEnv(gym.Env):
         rospy.wait_for_service(reset_sim_srv_name)
         self.reset_sim_proxy = rospy.ServiceProxy(reset_sim_srv_name, std_srvs.Empty)
         print(colored('[RopodEnv] Service {0} is up'.format(reset_sim_srv_name), 'green'))
+
+        print(colored('[RopodEnv] Waiting for service {0}'.format(spawn_model_srv_name), 'green'))
+        rospy.wait_for_service(spawn_model_srv_name)
+        self.spawn_model_proxy = rospy.ServiceProxy(spawn_model_srv_name, gazebo_srvs.SpawnModel)
+        print(colored('[RopodEnv] Service {0} is up'.format(spawn_model_srv_name), 'green'))
 
         self.sim_vis_process = None
 
@@ -81,6 +97,28 @@ class RopodEnv(gym.Env):
         self.roscore_process.terminate()
         self.sim_process.wait()
         self.roscore_process.wait()
+
+    def insert_model(self, model: ModelDescription) -> None:
+        '''Adds a model to the simulated environment.
+
+        Keyword arguments:
+        model: ModelDescription -- model parameters
+
+        '''
+        model_request = gazebo_srvs.SpawnModelRequest()
+        model_request.model_name = model.name
+        model_request.model_xml = model.as_string()
+        model_request.initial_pose.position.x = model.pose[0][0]
+        model_request.initial_pose.position.x = model.pose[0][1]
+        model_request.initial_pose.position.x = model.pose[0][2]
+        model_request.initial_pose.orientation.x = model.pose[1][0]
+        model_request.initial_pose.orientation.y = model.pose[1][1]
+        model_request.initial_pose.orientation.z = model.pose[1][2]
+        model_request.initial_pose.orientation.w = model.pose[1][3]
+
+        print(colored('[RopodEnv] Inserting model {0}'.format(model.name), 'green'))
+        self.spawn_model_proxy(model_request)
+        print(colored('[RopodEnv] Model {0} inserted'.format(model.name), 'green'))
 
     def _close_sim_client(self):
         '''Stops the process running the simulation client.
