@@ -41,6 +41,7 @@ Test scripts that illustrate the environment use and should run out of the box c
 
 * Python 3.5+
 * `gym`
+* `transforms3d`
 * The [`ropod simulation`](https://github.com/ropod-project/ropod_sim_model)
 * `rospkg`
 * `termcolor`

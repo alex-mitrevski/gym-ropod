@@ -1,3 +1,4 @@
 gym
+transforms3d
 termcolor
 rospkg
