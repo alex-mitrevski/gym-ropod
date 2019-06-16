@@ -47,6 +47,7 @@ class RopodEnv(gym.Env):
         self.delete_model_proxy = None
         self.sim_vis_process = None
 
+        self.environment_model_names = []
         self.dynamic_model_names = []
 
         print(colored('[RopodEnv] Launching roscore...', 'green'))
@@ -94,8 +95,14 @@ class RopodEnv(gym.Env):
         that were dynamically added and resetting the state of all
         initial models.
         '''
+        for model_name in self.environment_model_names:
+            self.__delete_model(model_name)
+            self.environment_model_names.remove(model_name)
+
         for model_name in self.dynamic_model_names:
-            self.delete_model(model_name)
+            self.__delete_model(model_name)
+            self.dynamic_model_names.remove(model_name)
+
         self.reset_sim_proxy()
 
     def render(self, mode: str='human') -> None:
@@ -118,8 +125,25 @@ class RopodEnv(gym.Env):
         self.sim_process.wait()
         self.roscore_process.wait()
 
-    def insert_model(self, model: ModelDescription) -> None:
-        '''Adds a model to the simulated environment.
+    def insert_env_model(self, model: ModelDescription) -> None:
+        '''Adds a static environment model to the simulation.
+        Removes the model and adds it again if it already exists in the environment.
+
+        Keyword arguments:
+        model: ModelDescription -- model parameters
+
+        '''
+        if model.name in self.environment_model_names:
+            print(colored('[RopodEnv] Removing existing model "{0}"'.format(model.name), 'yellow'))
+            self.__delete_model(model.name)
+            self.environment_model_names.remove(model.name)
+
+        self.__insert_model(model)
+        self.environment_model_names.append(model.name)
+
+    def insert_dynamic_model(self, model: ModelDescription) -> None:
+        '''Adds a dynamic model to the simulated environment.
+        Removes the model and adds it again if it already exists in the environment.
 
         Keyword arguments:
         model: ModelDescription -- model parameters
@@ -127,47 +151,59 @@ class RopodEnv(gym.Env):
         '''
         if model.name in self.dynamic_model_names:
             print(colored('[RopodEnv] Removing existing model "{0}"'.format(model.name), 'yellow'))
-            self.delete_model(model.name)
+            self.__delete_model(model.name)
+            self.dynamic_model_names.remove(model.name)
 
+        self.__insert_model(model)
+        self.dynamic_model_names.append(model.name)
+
+    def __insert_model(self, model: ModelDescription) -> None:
+        '''Adds a model to the simulated environment.
+
+        Keyword arguments:
+        model: ModelDescription -- model parameters
+
+        '''
         model_request = gazebo_srvs.SpawnModelRequest()
         model_request.model_name = model.name
         model_request.model_xml = model.as_string()
+        model_request.reference_frame = 'world'
 
-        model_request.initial_pose.position.x = model.pose[0][0]
-        model_request.initial_pose.position.y = model.pose[0][1]
-        model_request.initial_pose.position.z = model.pose[0][2]
+        model_request.initial_pose.position.x = model.canonical_pose[0][0]
+        model_request.initial_pose.position.y = model.canonical_pose[0][1]
+        model_request.initial_pose.position.z = model.canonical_pose[0][2]
 
-        quat_orientation = tf.euler.euler2quat(*model.pose[1])
+        quat_orientation = tf.euler.euler2quat(*model.canonical_pose[1])
         model_request.initial_pose.orientation.w = quat_orientation[0]
         model_request.initial_pose.orientation.x = quat_orientation[1]
         model_request.initial_pose.orientation.y = quat_orientation[2]
         model_request.initial_pose.orientation.z = quat_orientation[3]
 
         print(colored('[RopodEnv] Inserting model "{0}"'.format(model.name), 'green'))
-        self.spawn_model_proxy(model_request)
-        print(colored('[RopodEnv] Model "{0}" inserted'.format(model.name), 'green'))
+        response = self.spawn_model_proxy(model_request)
+        if response.success:
+            print(colored('[RopodEnv] Model "{0}" inserted'.format(model.name), 'green'))
+        else:
+            print(colored('[RopodEnv] Could not insert "{0}": {1}'.format(model.name,
+                                                                          response.status_message), 'red'))
 
-        self.dynamic_model_names.append(model.name)
-
-    def delete_model(self, model_name: str) -> None:
+    def __delete_model(self, model_name: str) -> None:
         '''Removes a model from the simulation.
 
         Keyword arguments:
         model_name: str -- name of the model to remove
 
         '''
-        if model_name not in self.dynamic_model_names:
-            print(colored('[RopodEnv] Model "{0}" does not exist, so cannot remove it', 'yellow'))
-            return
-
         delete_model_request = gazebo_srvs.DeleteModelRequest()
         delete_model_request.model_name = model_name
 
         print(colored('[RopodEnv] Deleting model "{0}"'.format(model_name), 'green'))
-        self.delete_model_proxy(delete_model_request)
-        print(colored('[RopodEnv] Model "{0}" deleted'.format(model_name), 'green'))
-
-        self.dynamic_model_names.remove(model_name)
+        response = self.delete_model_proxy(delete_model_request)
+        if response.success:
+            print(colored('[RopodEnv] Model "{0}" deleted'.format(model_name), 'green'))
+        else:
+            print(colored('[RopodEnv] Could not delete "{0}": {1}'.format(model_name,
+                                                                          response.status_message), 'red'))
 
     def _close_sim_client(self):
         '''Stops the process running the simulation client.

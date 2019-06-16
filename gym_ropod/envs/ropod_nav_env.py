@@ -52,8 +52,10 @@ class RopodNavEnvConfig(object):
     @contact aleksandar.mitrevski@h-brs.de
 
     '''
+    world_path = os.environ['ROPOD_GYM_MODEL_PATH']
     env_to_config = {
-        'square': EnvironmentDescription(((-5., 5.), (-5., 5.)))
+        'square': EnvironmentDescription(os.path.join(world_path, 'worlds/square.world'),
+                                         ((-20, 0.), (0., 20.)))
     }
 
 
@@ -117,35 +119,44 @@ class RopodNavDiscreteEnv(RopodEnv):
         '''
         super().reset()
 
+        # we add the static environment models
+        for model in self.env_config.models:
+            self.insert_env_model(model)
+
+        # we add obstacles to the environment
         for i in range(self.number_of_obstacles):
             pose, collision_size, visual_size = self.sample_model_parameters()
             model_name = 'box_' + str(i+1)
             model = PrimitiveModel(name=model_name,
-                                   sdf_path=os.path.join(self.model_path, 'box.sdf'),
-                                   pose=pose, collision_size=collision_size,
+                                   sdf_path=os.path.join(self.model_path, 'models/box.sdf'),
+                                   model_type='box', pose=pose,
+                                   collision_size=collision_size,
                                    visual_size=visual_size)
-            self.insert_model(model)
+            self.insert_dynamic_model(model)
 
     def sample_model_parameters(self) -> Tuple[Tuple, Tuple, Tuple]:
         '''Generates a random pose as well as collision and visual sizes
         for a dynamic model. The parameters are generated as follows:
-        * for the pose, only the x and y positions and the z orientation are set;
-          the position are sampled from the environment boundaries specified in
-          self.env_config, while the orientation is sampled between -pi and pi radians
+        * for the pose, only the position and z-orientation are set;
+          the x and y positions are sampled from the environment boundaries specified in
+          self.env_config, the orientation is sampled between -pi and pi radians, and
+          the z position is set to half the z collision size in order for the model
+          to be on top of the ground
         * the collision sizes are sampled between 0.2 and 1.0 in all three directions
         * the visual size is the same as the collision size
         '''
-        position_x = np.random.uniform(self.env_config.boundaries[0][0],
-                                       self.env_config.boundaries[0][1])
-        position_y = np.random.uniform(self.env_config.boundaries[1][0],
-                                       self.env_config.boundaries[1][1])
-        orientation_z = np.random.uniform(-np.pi, np.pi)
-        pose = ((position_x, position_y, 0.), (0., 0., orientation_z))
-
         collision_size_x = np.random.uniform(0.2, 1.0)
         collision_size_y = np.random.uniform(0.2, 1.0)
         collision_size_z = np.random.uniform(0.2, 1.0)
         collision_size = (collision_size_x, collision_size_y, collision_size_z)
         visual_size = collision_size
+
+        position_x = np.random.uniform(self.env_config.boundaries[0][0],
+                                       self.env_config.boundaries[0][1])
+        position_y = np.random.uniform(self.env_config.boundaries[1][0],
+                                       self.env_config.boundaries[1][1])
+        position_z = collision_size_z / 2.
+        orientation_z = np.random.uniform(-np.pi, np.pi)
+        pose = ((position_x, position_y, position_z), (0., 0., orientation_z))
 
         return (pose, visual_size, collision_size)
