@@ -2,6 +2,18 @@
 
 Defines a Gazebo-based OpenAI gym environment for a ROPOD robot.
 
+## README contents
+
+1. [Defined environments](#Defined-environments)
+2. [Gazebo entities](#Gazebo-entities)
+    1. [Gazebo worlds](#Gazebo-worlds)
+        * [Square world](#Square-world)
+    2. [Object models](#Object-models)
+3. [Setup](#Setup)
+4. [Usage](#Usage)
+5. [Requirements](#Requirements)
+6. [Acknowledgments](#Acknowledgments)
+
 ## Defined environments
 
 ### `ropod-nav-discrete-v0`
@@ -16,6 +28,22 @@ The action space contains the following actions:
 * `4`: right turn with `0.1m/s` linear speed and `0.1m/s` rotational speed
 * `5`: backward motion with `0.1m/s`
 
+## Gazebo entities
+
+### Gazebo worlds
+
+Gazebo worlds are included under [`model_config/worlds`](model_config/worlds). The world to be used in a simulation is specified when creating the environment and its elements are loaded on the fly. The currently defined worlds are briefly described below.
+
+#### Square world
+
+A simple square world without any static obstacles (other than the walls); any other obstacles are added on the fly at randomised positions. The world with the robot and two randomly added obstacles is shown below.
+
+![square world](docs/images/square_world.png)
+
+### Object models
+
+Object models used in the simulation are included under [`model_config/models`](model_config/models) (the robot model is however not in this repository, but in [`ropod_sim_model`](https://github.com/ropod-project/ropod_sim_model)). These models are used for adding environment obstacles on the fly.
+
 ## Setup
 
 1. Set up the package:
@@ -29,14 +57,17 @@ export ROPOD_GYM_MODEL_PATH=/path/to/gym-ropod/model_config
 
 ## Usage
 
-A simple usage example for the environment is given below:
+A simple usage example for the environment is given below. In this case, we load the square world and add five obstacles to it.
 
 ```
 import gym
 launch_file = '/path/to/my_simulation_launch_file.launch'
 
 # create, render, and reset the environment
-env = gym.make('ropod-nav-discrete-v0', launch_file_path=launch_file)
+env = gym.make('ropod-nav-discrete-v0',
+               launch_file_path=launch_file,
+               env_type='square',
+               number_of_obstacles=5)
 env.render(mode='human')
 env.reset()
 
