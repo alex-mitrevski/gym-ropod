@@ -15,6 +15,17 @@ The action space contains the following actions:
 * `3`: left turn with `0.1m/s` linear speed and `0.1m/s` rotational speed
 * `4`: right turn with `0.1m/s` linear speed and `0.1m/s` rotational speed
 
+## Setup
+
+1. Set up the package:
+```
+(sudo) python setup.py [develop|install]
+```
+2. Set the `ROPOD_GYM_MODEL_PATH` environment variable to the absolute path of the `model_config` directory:
+```
+export ROPOD_GYM_MODEL_PATH=/path/to/gym-ropod/model_config
+```
+
 ## Usage
 
 A simple usage example for the environment is given below:
