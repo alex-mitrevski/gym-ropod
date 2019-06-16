@@ -1,0 +1,136 @@
+<?xml version="1.0" ?>
+<sdf version="1.4">
+<world name="square">
+    <model name="wall_1">
+        <static>1</static>
+        <pose>-10 0 1.5 0 0 0</pose>
+        <link name="wall_1">
+            <pose>0 0 0 0 0 0</pose>
+            <inertial>
+                <mass>5</mass>
+                <inertia>
+                    <ixx>0.0</ixx>
+                    <ixy>0.0</ixy>
+                    <ixz>0.0</ixz>
+                    <iyy>0.0</iyy>
+                    <iyz>0.0</iyz>
+                    <izz>0.0</izz>
+                </inertia>
+            </inertial>
+            <collision name="wall_1_collision">
+                <geometry>
+                    <box>
+                        <size>20.0 0.2 3.0</size>
+                    </box>
+                </geometry>
+            </collision>
+            <visual name="wall_1_visual">
+               <geometry>
+                   <box>
+                       <size>20.0 0.2 3.0</size>
+                   </box>
+               </geometry>
+            </visual>
+        </link>
+    </model>
+
+    <model name="wall_2">
+        <static>1</static>
+        <pose>0 10.0 1.5 0 0 0</pose>
+        <link name="wall_2">
+            <pose>0 0 0 0 0 0</pose>
+            <inertial>
+                <mass>5</mass>
+                <inertia>
+                    <ixx>0.0</ixx>
+                    <ixy>0.0</ixy>
+                    <ixz>0.0</ixz>
+                    <iyy>0.0</iyy>
+                    <iyz>0.0</iyz>
+                    <izz>0.0</izz>
+                </inertia>
+            </inertial>
+            <collision name="wall_2_collision">
+                <geometry>
+                    <box>
+                        <size>0.2 20.0 3.0</size>
+                    </box>
+                </geometry>
+            </collision>
+            <visual name="wall_2_visual">
+               <geometry>
+                   <box>
+                       <size>0.2 20.0 3.0</size>
+                   </box>
+               </geometry>
+            </visual>
+        </link>
+    </model>
+
+    <model name="wall_3">
+        <static>1</static>
+        <pose>-10.0 20.0 1.5 0 0 0</pose>
+        <link name="wall_3">
+            <pose>0 0 0 0 0 0</pose>
+            <inertial>
+                <mass>5</mass>
+                <inertia>
+                    <ixx>0.0</ixx>
+                    <ixy>0.0</ixy>
+                    <ixz>0.0</ixz>
+                    <iyy>0.0</iyy>
+                    <iyz>0.0</iyz>
+                    <izz>0.0</izz>
+                </inertia>
+            </inertial>
+            <collision name="wall_3_collision">
+                <geometry>
+                    <box>
+                        <size>20.0 0.2 3.0</size>
+                    </box>
+                </geometry>
+            </collision>
+            <visual name="wall_3_visual">
+               <geometry>
+                   <box>
+                       <size>20.0 0.2 3.0</size>
+                   </box>
+               </geometry>
+            </visual>
+        </link>
+    </model>
+
+    <model name="wall_4">
+        <static>1</static>
+        <pose>-20.0 10.0 1.5 0 0 0</pose>
+        <link name="wall_4">
+            <pose>0 0 0 0 0 0</pose>
+            <inertial>
+                <mass>5</mass>
+                <inertia>
+                    <ixx>0.0</ixx>
+                    <ixy>0.0</ixy>
+                    <ixz>0.0</ixz>
+                    <iyy>0.0</iyy>
+                    <iyz>0.0</iyz>
+                    <izz>0.0</izz>
+                </inertia>
+            </inertial>
+            <collision name="wall_4_collision">
+                <geometry>
+                    <box>
+                        <size>0.2 20.0 3.0</size>
+                    </box>
+                </geometry>
+            </collision>
+            <visual name="wall_4_visual">
+               <geometry>
+                   <box>
+                       <size>0.2 20.0 3.0</size>
+                   </box>
+               </geometry>
+            </visual>
+        </link>
+    </model>
+</world>
+</sdf>
