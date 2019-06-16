@@ -24,19 +24,21 @@ class RopodNavActions(object):
 
     '''
     action_num_to_str = {
-        0: 'straight',
+        0: 'forward',
         1: 'left',
         2: 'right',
         3: 'left_turn',
-        4: 'right_turn'
+        4: 'right_turn',
+        5: 'backward'
     }
 
     action_to_vel = {
-        'straight': [0.1, 0.0, 0.0],
+        'forward': [0.1, 0.0, 0.0],
         'left': [0.0, 0.1, 0.0],
         'right': [0.0, -0.1, 0.0],
         'left_turn': [0.1, 0.0, 0.1],
-        'right_turn': [0.1, 0.0, -0.1]
+        'right_turn': [0.1, 0.0, -0.1],
+        'backward': [-0.1, 0.0, 0.0]
     }
 
 
@@ -93,7 +95,7 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.vel_pub = rospy.Publisher(cmd_vel_topic, Twist, queue_size=1)
         self.vel_msg = Twist()
 
-        self.action_space = spaces.Discrete(5)
+        self.action_space = spaces.Discrete(len(RopodNavActions.action_num_to_str))
 
     def step(self, action: int):
         '''Publishes a velocity command message based on the given action.

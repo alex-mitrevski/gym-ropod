@@ -9,11 +9,12 @@ Defines a Gazebo-based OpenAI gym environment for a ROPOD robot.
 A navigation environment for a ropod with a discrete action space.
 
 The action space contains the following actions:
-* `0`: straight motion with `0.1m/s`
+* `0`: forward motion with `0.1m/s`
 * `1`: left motion with `0.1m/s`
 * `2`: right motion with `0.1m/s`
 * `3`: left turn with `0.1m/s` linear speed and `0.1m/s` rotational speed
 * `4`: right turn with `0.1m/s` linear speed and `0.1m/s` rotational speed
+* `5`: backward motion with `0.1m/s`
 
 ## Setup
 
