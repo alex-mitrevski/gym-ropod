@@ -79,6 +79,7 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         self.collision_punishment = -1000.
         self.direction_change_punishment = -10.
+        self.__inf = float('inf')
 
         self.goal_pose = None
         self.previous_action = None
@@ -103,7 +104,8 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         # preparing the result
         reward = self.get_reward(action)
-        observation = self.laser_scan_msg.ranges
+        observation = [x if x != self.__inf else self.laser_scan_msg.range_max
+                       for x in self.laser_scan_msg.ranges]
         done = self.robot_under_collision
 
         self.previous_action = action
