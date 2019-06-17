@@ -18,7 +18,7 @@ Defines a Gazebo-based OpenAI gym environment for a ROPOD robot.
 
 ### `ropod-nav-discrete-v0`
 
-A navigation environment for a ropod with a discrete action space.
+A navigation environment for a ropod with a discrete action space. In each episode, the robot's objective is to reach a randomly generated navigation goal without colliding with obstacles (a collision ends the episode).
 
 The action space contains the following actions:
 * `0`: forward motion with `0.1m/s`
@@ -26,7 +26,15 @@ The action space contains the following actions:
 * `2`: right motion with `0.1m/s`
 * `3`: left turn with `0.1m/s` linear speed and `0.1m/s` rotational speed
 * `4`: right turn with `0.1m/s` linear speed and `0.1m/s` rotational speed
-* `5`: backward motion with `0.1m/s`
+* `5`: backward motion with `-0.1m/s`
+
+The observation at each step is a set of laser measurements obtained from a front laser scanner.
+
+The reward is calculated using the following equation:
+
+<img src="https://latex.codecogs.com/gif.latex?\frac{1}{d}&space;&plus;&space;c_1\mathbf{1}_{c_t=1}&space;&plus;&space;c_2\mathbf{1}_{a_{t-1}&space;\neq&space;a_t}" title="\frac{1}{d} + c_1\mathbf{1}_{c_t=1} + c_2\mathbf{1}_{a_{t-1} \neq a_t}" />
+
+Here, `d` is the distance from the robot to the goal, `c_t` indicates whether the robot has collided at time `t`, and `a_t` denotes the action taken at time `t`. We thus want the robot to reach the goal without making unnecessary direction changes and without collisions. The values of the constants `c_1` and `c_2` are set to `-1000` and `-10` respectively.
 
 ## Gazebo entities
 
@@ -74,8 +82,8 @@ env.reset()
 # sample an action
 action = env.action_space.sample()
 
-# apply the sampled action
-env.step(action)
+# apply the sampled action and get information about the outcome
+(obs, reward, done) = env.step(action)
 ```
 
 Test scripts that illustrate the environment use and should run out of the box can be found under [test](test).
@@ -86,6 +94,7 @@ Test scripts that illustrate the environment use and should run out of the box c
 * `gym`
 * `numpy`
 * `transforms3d`
+* `shapely`
 * The [`ropod simulation`](https://github.com/ropod-project/ropod_sim_model)
 * `rospkg`
 * `termcolor`

@@ -24,11 +24,20 @@ if __name__ == "__main__":
 
     try:
         print(colored('Running simulation for {0} steps'.format(number_of_steps), 'green'))
+        episode_step_count = 0
         for i in range(number_of_steps):
             action = env.action_space.sample()
-            print(colored('Sending command "{0}"'.format(RopodNavActions.action_num_to_str[action]), 'green'))
-            env.step(action)
-            time.sleep(0.05)
+            (obs, reward, done) = env.step(action)
+            print(colored('"{0}" -> reward {1}'.format(RopodNavActions.action_num_to_str[action],
+                                                       reward), 'green'))
+            episode_step_count += 1
+            if done:
+                print(colored('Episode done after {0} steps'.format(episode_step_count), 'yellow'))
+                print(colored('Resetting environment', 'yellow'))
+                env.reset()
+                episode_step_count = 0
+            else:
+                time.sleep(0.05)
 
         env.reset()
         signal.pause()

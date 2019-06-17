@@ -13,7 +13,7 @@ from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 import std_srvs.srv as std_srvs
 
-from gazebo_msgs.msg import ContactsState
+from gazebo_msgs.msg import ContactsState, ModelStates
 import gazebo_msgs.srv as gazebo_srvs
 
 from gym_ropod.utils.model import ModelDescription
@@ -46,6 +46,7 @@ class RopodEnv(gym.Env):
                  reset_sim_srv_name: str='/gazebo/reset_world',
                  spawn_model_srv_name: str='/gazebo/spawn_sdf_model',
                  delete_model_srv_name: str='/gazebo/delete_model',
+                 model_state_topic: str='/gazebo/model_states',
                  cmd_vel_topic: str='/ropod/cmd_vel',
                  laser_topic: str='/ropod/laser/scan',
                  bumper_topic: str='/ropod/bumper'):
@@ -60,6 +61,14 @@ class RopodEnv(gym.Env):
                                      (default "/gazebo/spawn_sdf_model")
         delete_model_srv_name: str -- name of a service for deleting models from the environment
                                       (default "/gazebo/delete_model")
+        model_state_topic: str -- name of a topic for getting the state of the simulation models
+                                  (default "/gazebo/model_states")
+        cmd_vel_topic: str -- name of a topic at which velocity commands are published
+                              (default "/ropod/cmd_vel")
+        laser_topic: str -- name of a topic at which laser scans are published
+                            (default "/ropod/laser/scan")
+        bumper_topic: str -- name of a topic at which collision status can be obtained
+                             (default "/ropod/bumper")
 
         '''
         if not os.path.exists(launch_file_path):
@@ -74,6 +83,7 @@ class RopodEnv(gym.Env):
 
         self.environment_model_names = []
         self.dynamic_model_names = []
+        self.models = []
 
         print(colored('[RopodEnv] Launching roscore...', 'green'))
         self.roscore_process = subprocess.Popen(['roscore', '-p', roscore_port])
@@ -113,6 +123,9 @@ class RopodEnv(gym.Env):
         self.robot_under_collision = False
         self.bumper_sub = rospy.Subscriber(bumper_topic, ContactsState, self.bumper_cb)
 
+        self.robot_pose = None
+        self.model_state_sub = rospy.Subscriber(model_state_topic, ModelStates, self.save_robot_pose)
+
     @abstractmethod
     def step(self, action: int):
         '''Runs a single step through the simulation.
@@ -137,6 +150,7 @@ class RopodEnv(gym.Env):
             self.__delete_model(model_name)
             self.dynamic_model_names.remove(model_name)
 
+        self.models = []
         self.reset_sim_proxy()
 
     def render(self, mode: str='human') -> None:
@@ -174,6 +188,22 @@ class RopodEnv(gym.Env):
         else:
             self.robot_under_collision = False
 
+    def save_robot_pose(self, msg: ModelStates) -> None:
+        '''Updates the value of self.robot_pose based on the pose
+        of the "robot" model in the given message.
+        '''
+        for i, model_name in enumerate(msg.name):
+            if model_name == 'ropod':
+                position_x = msg.pose[i].position.x
+                position_y = msg.pose[i].position.y
+
+                quat_orientation = (msg.pose[i].orientation.w, msg.pose[i].orientation.x,
+                                    msg.pose[i].orientation.y, msg.pose[i].orientation.z)
+                euler_orientation = tf.euler.quat2euler(quat_orientation)
+                orientation_z = euler_orientation[2]
+                self.robot_pose = (position_x, position_y, orientation_z)
+                return
+
     def insert_env_model(self, model: ModelDescription) -> None:
         '''Adds a static environment model to the simulation.
         Removes the model and adds it again if it already exists in the environment.
@@ -189,6 +219,7 @@ class RopodEnv(gym.Env):
 
         self.__insert_model(model)
         self.environment_model_names.append(model.name)
+        self.models.append(model)
 
     def insert_dynamic_model(self, model: ModelDescription) -> None:
         '''Adds a dynamic model to the simulated environment.
@@ -205,6 +236,7 @@ class RopodEnv(gym.Env):
 
         self.__insert_model(model)
         self.dynamic_model_names.append(model.name)
+        self.models.append(model)
 
     def __insert_model(self, model: ModelDescription) -> None:
         '''Adds a model to the simulated environment.

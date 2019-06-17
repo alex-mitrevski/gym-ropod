@@ -1,11 +1,13 @@
-from typing import Tuple
+from typing import Tuple, Sequence
 
 import os
 import numpy as np
+import shapely
 from gym import spaces
 
 from gym_ropod.envs.ropod_env import RopodEnv, RopodEnvConfig
 from gym_ropod.utils.model import PrimitiveModel
+from gym_ropod.utils.geometry import GeometryUtils
 
 class RopodNavActions(object):
     '''Defines the following navigation action mappings:
@@ -75,20 +77,63 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         self.action_space = spaces.Discrete(len(RopodNavActions.action_num_to_str))
 
-    def step(self, action: int):
+        self.collision_punishment = -1000.
+        self.direction_change_punishment = -10.
+
+        self.goal_pose = None
+        self.previous_action = None
+
+    def step(self, action: int) -> Tuple[Sequence[float], float, bool]:
         '''Publishes a velocity command message based on the given action.
+        Returns:
+        * a list of laser scan measurements
+        * obtained reward after performing the action
+        * an indicator about whether the episode is done
 
         Keyword arguments:
         action: int -- a navigation action to execute
 
         '''
+        # applying the action
         vels = RopodNavActions.action_to_vel[RopodNavActions.action_num_to_str[action]]
-
         self.vel_msg.linear.x = vels[0]
         self.vel_msg.linear.y = vels[1]
         self.vel_msg.angular.z = vels[2]
-
         self.vel_pub.publish(self.vel_msg)
+
+        # preparing the result
+        reward = self.get_reward(action)
+        observation = self.laser_scan_msg.ranges
+        done = self.robot_under_collision
+
+        self.previous_action = action
+
+        return (observation, reward, done)
+
+    def get_reward(self, action: int) -> float:
+        '''Calculates the reward obtained by applying the given action
+        using the following equation:
+
+        R_t = \frac{1}{d} + c_1\mathbf{1}_{c_t=1} + c_2\mathbf{a_{t-1} \neq a_t}
+
+        where
+        * d is the distance from the robot to the goal
+        * c_t indicates whether the robot has collided
+        * a_t is the action at time t
+        * c_1 is the value of self.collision_punishment
+        * c_2 is the vlaue of self.direction_change_punishment
+
+        Keyword arguments:
+        action: int -- an executed action
+
+        '''
+        goal_dist = GeometryUtils.distance(self.robot_pose, self.goal_pose)
+        collision = 1 if self.robot_under_collision else 0
+        direction_change = 1 if action != self.previous_action else 0
+        reward = 1. / goal_dist + \
+                 collision * self.collision_punishment + \
+                 direction_change * self.direction_change_punishment
+        return reward
 
     def reset(self):
         '''Resets the simulation environment.
@@ -109,6 +154,27 @@ class RopodNavDiscreteEnv(RopodEnv):
                                    collision_size=collision_size,
                                    visual_size=visual_size)
             self.insert_dynamic_model(model)
+
+        # we generate a goal pose for the robot
+        self.goal_pose = self.generate_goal_pose()
+
+    def generate_goal_pose(self) -> Tuple[float, float, float]:
+        '''Randomly generates a goal pose in the environment, ensuring that
+        the pose does not overlap any of the existing objects.
+        '''
+        goal_pose_found = False
+        pose = None
+        while not goal_pose_found:
+            position_x = np.random.uniform(self.env_config.boundaries[0][0],
+                                           self.env_config.boundaries[0][1])
+            position_y = np.random.uniform(self.env_config.boundaries[1][0],
+                                           self.env_config.boundaries[1][1])
+            orientation_z = np.random.uniform(-np.pi, np.pi)
+
+            pose = (position_x, position_y, orientation_z)
+            if not self.__pose_overlapping_models(pose):
+                goal_pose_found = True
+        return pose
 
     def sample_model_parameters(self) -> Tuple[Tuple, Tuple, Tuple]:
         '''Generates a random pose as well as collision and visual sizes
@@ -136,3 +202,16 @@ class RopodNavDiscreteEnv(RopodEnv):
         pose = ((position_x, position_y, position_z), (0., 0., orientation_z))
 
         return (pose, visual_size, collision_size)
+
+    def __pose_overlapping_models(self, pose: Tuple[float, float, float]):
+        '''Returns True if the given pose overlaps with any of the existing
+        objects in the environment; returns False otherwise.
+
+        Keyword arguments:
+        pose: Tuple[float, float, float]: a 2D pose in the format (x, y, theta)
+
+        '''
+        for model in self.models:
+            if GeometryUtils.pose_inside_model(pose, model):
+                return True
+        return False
