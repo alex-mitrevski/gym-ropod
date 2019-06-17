@@ -85,9 +85,11 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.goal_pose = None
         self.previous_action = None
 
-    def step(self, action: int) -> Tuple[Sequence[float], float, bool]:
+    def step(self, action: int) -> Tuple[Tuple[float, float, float],
+                                         Sequence[float], float, bool]:
         '''Publishes a velocity command message based on the given action.
         Returns:
+        * the goal pose in the format (x, y, theta)
         * a list of laser scan measurements
         * obtained reward after performing the action
         * an indicator about whether the episode is done
@@ -111,7 +113,7 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         self.previous_action = action
 
-        return (observation, reward, done)
+        return (self.goal_pose, observation, reward, done)
 
     def get_reward(self, action: int) -> float:
         '''Calculates the reward obtained by applying the given action

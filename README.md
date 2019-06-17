@@ -83,7 +83,7 @@ env.reset()
 action = env.action_space.sample()
 
 # apply the sampled action and get information about the outcome
-(obs, reward, done) = env.step(action)
+(goal, obs, reward, done) = env.step(action)
 ```
 
 Test scripts that illustrate the environment use and should run out of the box can be found under [test](test).

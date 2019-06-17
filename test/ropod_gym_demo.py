@@ -25,7 +25,7 @@ if __name__ == "__main__":
         episode_step_count = 0
         for i in range(number_of_steps):
             action = env.action_space.sample()
-            (obs, reward, done) = env.step(action)
+            (goal, obs, reward, done) = env.step(action)
             print(colored('"{0}" -> reward {1}'.format(RopodNavActions.action_num_to_str[action],
                                                        reward), 'green'))
             episode_step_count += 1
