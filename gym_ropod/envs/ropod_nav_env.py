@@ -2,7 +2,6 @@ from typing import Tuple, Sequence
 
 import os
 import numpy as np
-import shapely
 from gym import spaces
 
 from gym_ropod.envs.ropod_env import RopodEnv, RopodEnvConfig
@@ -162,6 +161,13 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         # we generate a goal pose for the robot
         self.goal_pose = self.generate_goal_pose()
+
+        # preparing the result
+        reward = self.get_reward(None)
+        observation = [x if x != self.__inf else self.laser_scan_msg.range_max
+                       for x in self.laser_scan_msg.ranges]
+        done = False
+        return (self.goal_pose, observation, reward, done)
 
     def generate_goal_pose(self) -> Tuple[float, float, float]:
         '''Randomly generates a goal pose in the environment, ensuring that
