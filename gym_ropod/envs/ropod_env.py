@@ -9,6 +9,10 @@ import transforms3d as tf
 import gym
 
 import rospy
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import LaserScan
+from gazebo_msgs.msg import ContactsState
+
 import std_srvs.srv as std_srvs
 import gazebo_msgs.srv as gazebo_srvs
 
@@ -23,7 +27,10 @@ class RopodEnv(gym.Env):
                  roscore_port: str='11311',
                  reset_sim_srv_name: str='/gazebo/reset_world',
                  spawn_model_srv_name: str='/gazebo/spawn_sdf_model',
-                 delete_model_srv_name: str='/gazebo/delete_model'):
+                 delete_model_srv_name: str='/gazebo/delete_model',
+                 cmd_vel_topic: str='/ropod/cmd_vel',
+                 laser_topic: str='/ropod/laser/scan',
+                 bumper_topic: str='/ropod/bumper'):
         '''Raises an IOError if the specified launch file path does not exist.
 
         Keyword arguments:
@@ -79,6 +86,15 @@ class RopodEnv(gym.Env):
         rospy.init_node('gym')
         print(colored('[RopodEnv] ROS node initialised', 'green'))
 
+        self.vel_pub = rospy.Publisher(cmd_vel_topic, Twist, queue_size=1)
+        self.vel_msg = Twist()
+
+        self.laser_scan_msg = None
+        self.laser_scan_sub = rospy.Subscriber(laser_topic, LaserScan, self.laser_cb)
+
+        self.robot_under_collision = False
+        self.bumper_sub = rospy.Subscriber(bumper_topic, ContactsState, self.bumper_cb)
+
     @abstractmethod
     def step(self, action: int):
         '''Runs a single step through the simulation.
@@ -124,6 +140,21 @@ class RopodEnv(gym.Env):
         self.roscore_process.terminate()
         self.sim_process.wait()
         self.roscore_process.wait()
+
+    def laser_cb(self, msg: LaserScan) -> None:
+        '''Saves "msg" in self.laser_scan_msg.
+        '''
+        self.laser_scan_msg = msg
+
+    def bumper_cb(self, msg: ContactsState) -> None:
+        '''Updates the value of self.robot_under_collision
+        depending on whether "msg" includes information about
+        contacts with the environment.
+        '''
+        if msg.states:
+            self.robot_under_collision = True
+        else:
+            self.robot_under_collision = False
 
     def insert_env_model(self, model: ModelDescription) -> None:
         '''Adds a static environment model to the simulation.

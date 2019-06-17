@@ -3,8 +3,6 @@ from typing import Tuple
 import os
 import numpy as np
 from gym import spaces
-import rospy
-from geometry_msgs.msg import Twist
 
 from gym_ropod.envs.ropod_env import RopodEnv
 from gym_ropod.utils.model import PrimitiveModel
@@ -67,7 +65,6 @@ class RopodNavDiscreteEnv(RopodEnv):
 
     '''
     def __init__(self, launch_file_path: str,
-                 cmd_vel_topic: str='/ropod/cmd_vel',
                  env_type: str='square',
                  number_of_obstacles: int=0):
         '''Throws an AssertionError if "env_name" is not in RopodNavEnvConfig.env_to_config or
@@ -93,9 +90,6 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.model_path = os.environ['ROPOD_GYM_MODEL_PATH']
         self.env_config = RopodNavEnvConfig.env_to_config[env_type]
         self.number_of_obstacles = number_of_obstacles
-
-        self.vel_pub = rospy.Publisher(cmd_vel_topic, Twist, queue_size=1)
-        self.vel_msg = Twist()
 
         self.action_space = spaces.Discrete(len(RopodNavActions.action_num_to_str))
 
