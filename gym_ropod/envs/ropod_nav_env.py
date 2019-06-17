@@ -4,9 +4,8 @@ import os
 import numpy as np
 from gym import spaces
 
-from gym_ropod.envs.ropod_env import RopodEnv
+from gym_ropod.envs.ropod_env import RopodEnv, RopodEnvConfig
 from gym_ropod.utils.model import PrimitiveModel
-from gym_ropod.utils.environment import EnvironmentDescription
 
 class RopodNavActions(object):
     '''Defines the following navigation action mappings:
@@ -40,23 +39,6 @@ class RopodNavActions(object):
     }
 
 
-class RopodNavEnvConfig(object):
-    '''Defines the following environment mappings:
-    env_to_config: Dict[string, EnvironmentDescription] -- maps environment names
-                                                           to EnvironmentDescription objects
-                                                           that configure the environments
-
-    @author Alex mitrevski
-    @contact aleksandar.mitrevski@h-brs.de
-
-    '''
-    world_path = os.environ['ROPOD_GYM_MODEL_PATH']
-    env_to_config = {
-        'square': EnvironmentDescription(os.path.join(world_path, 'worlds/square.world'),
-                                         ((-20, 0.), (0., 20.)))
-    }
-
-
 class RopodNavDiscreteEnv(RopodEnv):
     '''A navigation environment for a ROPOD robot with a discrete action space.
 
@@ -67,7 +49,7 @@ class RopodNavDiscreteEnv(RopodEnv):
     def __init__(self, launch_file_path: str,
                  env_type: str='square',
                  number_of_obstacles: int=0):
-        '''Throws an AssertionError if "env_name" is not in RopodNavEnvConfig.env_to_config or
+        '''Throws an AssertionError if "env_name" is not in RopodEnvConfig.env_to_config or
         the environment variable "ROPOD_GYM_MODEL_PATH" is not set.
 
         Keyword arguments:
@@ -81,14 +63,14 @@ class RopodNavDiscreteEnv(RopodEnv):
         '''
         super(RopodNavDiscreteEnv, self).__init__(launch_file_path)
 
-        if env_type not in RopodNavEnvConfig.env_to_config:
+        if env_type not in RopodEnvConfig.env_to_config:
             raise AssertionError('Unknown environment "{0}" specified'.format(env_type))
 
         if 'ROPOD_GYM_MODEL_PATH' not in os.environ:
             raise AssertionError('The ROPOD_GYM_MODEL_PATH environment variable is not set')
 
         self.model_path = os.environ['ROPOD_GYM_MODEL_PATH']
-        self.env_config = RopodNavEnvConfig.env_to_config[env_type]
+        self.env_config = RopodEnvConfig.env_to_config[env_type]
         self.number_of_obstacles = number_of_obstacles
 
         self.action_space = spaces.Discrete(len(RopodNavActions.action_num_to_str))

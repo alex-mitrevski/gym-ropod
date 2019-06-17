@@ -11,12 +11,30 @@ import gym
 import rospy
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
-from gazebo_msgs.msg import ContactsState
-
 import std_srvs.srv as std_srvs
+
+from gazebo_msgs.msg import ContactsState
 import gazebo_msgs.srv as gazebo_srvs
 
 from gym_ropod.utils.model import ModelDescription
+from gym_ropod.utils.environment import EnvironmentDescription
+
+class RopodEnvConfig(object):
+    '''Defines the following environment mappings:
+    env_to_config: Dict[string, EnvironmentDescription] -- maps environment names
+                                                           to EnvironmentDescription objects
+                                                           that configure the environments
+
+    @author Alex mitrevski
+    @contact aleksandar.mitrevski@h-brs.de
+
+    '''
+    world_path = os.environ['ROPOD_GYM_MODEL_PATH']
+    env_to_config = {
+        'square': EnvironmentDescription(os.path.join(world_path, 'worlds/square.world'),
+                                         ((-20, 0.), (0., 20.)))
+    }
+
 
 class RopodEnv(gym.Env):
     '''An abstract base class for ROPOD environments. Builds upon
