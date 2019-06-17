@@ -1,5 +1,6 @@
 gym
 numpy
 transforms3d
+shapely
 termcolor
 rospkg
