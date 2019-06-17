@@ -76,6 +76,7 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.number_of_obstacles = number_of_obstacles
 
         self.action_space = spaces.Discrete(len(RopodNavActions.action_num_to_str))
+        self.observation_space = spaces.Box(0., 5., (500,))
 
         self.collision_punishment = -1000.
         self.direction_change_punishment = -10.

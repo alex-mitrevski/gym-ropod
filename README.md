@@ -28,11 +28,11 @@ The action space contains the following actions:
 * `4`: right turn with `0.1m/s` linear speed and `0.1m/s` rotational speed
 * `5`: backward motion with `-0.1m/s`
 
-The observation at each step is a set of laser measurements obtained from a front laser scanner.
+The observation at each step is a list of 500 laser measurements obtained from a front laser scanner.
 
 The reward is calculated using the following equation:
 
-<img src="https://latex.codecogs.com/gif.latex?\frac{1}{d}&space;&plus;&space;c_1\mathbf{1}_{c_t=1}&space;&plus;&space;c_2\mathbf{1}_{a_{t-1}&space;\neq&space;a_t}" title="\frac{1}{d} + c_1\mathbf{1}_{c_t=1} + c_2\mathbf{1}_{a_{t-1} \neq a_t}" />
+<img src="https://latex.codecogs.com/gif.latex?R_t&space;=&space;\frac{1}{d}&space;&plus;&space;c_1\mathbf{1}_{c_t=1}&space;&plus;&space;c_2\mathbf{1}_{a_{t-1}&space;\neq&space;a_t}" title="R_t = \frac{1}{d} + c_1\mathbf{1}_{c_t=1} + c_2\mathbf{1}_{a_{t-1} \neq a_t}" />
 
 Here, `d` is the distance from the robot to the goal, `c_t` indicates whether the robot has collided at time `t`, and `a_t` denotes the action taken at time `t`. We thus want the robot to reach the goal without making unnecessary direction changes and without collisions. The values of the constants `c_1` and `c_2` are set to `-1000` and `-10` respectively.
 
