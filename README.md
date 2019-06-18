@@ -36,6 +36,12 @@ The reward is calculated using the following equation:
 
 Here, `d` is the distance from the robot to the goal, `c_t` indicates whether the robot has collided at time `t`, and `a_t` denotes the action taken at time `t`. We thus want the robot to reach the goal without making unnecessary direction changes and without collisions. The values of the constants `c_1` and `c_2` are set to `-1000` and `-10` respectively.
 
+The `step` and `reset` environment functions return a tuple of four elements `(goal, obs, reward, done)`, where:
+* `goal`: a 2D pose in the format (x, y, theta) representing the current goal the robot is pursuing
+* `obs`: a list of laser scans
+* `reward`: the above reward
+* `done`: a Boolean indicating whether the episode has finished
+
 ## Gazebo entities
 
 ### Gazebo worlds
