@@ -108,7 +108,8 @@ class RopodNavDiscreteEnv(RopodEnv):
         reward = self.get_reward(action)
         observation = [x if x != self.__inf else self.laser_scan_msg.range_max
                        for x in self.laser_scan_msg.ranges]
-        done = self.robot_under_collision
+        done = self.robot_under_collision or GeometryUtils.poses_equal(self.robot_pose,
+                                                                       self.goal_pose)
 
         self.previous_action = action
 
