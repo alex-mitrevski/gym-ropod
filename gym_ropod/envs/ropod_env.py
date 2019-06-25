@@ -49,7 +49,8 @@ class RopodEnv(gym.Env):
                  model_state_topic: str='/gazebo/model_states',
                  cmd_vel_topic: str='/ropod/cmd_vel',
                  laser_topic: str='/ropod/laser/scan',
-                 bumper_topic: str='/ropod/bumper'):
+                 bumper_topic: str='/ropod/bumper',
+                 output_file: str=None):
         '''Raises an IOError if the specified launch file path does not exist.
 
         Keyword arguments:
@@ -69,10 +70,15 @@ class RopodEnv(gym.Env):
                             (default "/ropod/laser/scan")
         bumper_topic: str -- name of a topic at which collision status can be obtained
                              (default "/ropod/bumper")
+        output_file: str -- file path where the output of the child process should be stored
+                             (default "None")
 
         '''
         if not os.path.exists(launch_file_path):
             raise IOError('{0} is not a valid launch file path'.format(launch_file_path))
+
+        if not output_file:
+            output_file = '/tmp/gym_ropod_' + str(time.time()).replace('.','_')
 
         self.roscore_process = None
         self.sim_process = None
@@ -85,14 +91,17 @@ class RopodEnv(gym.Env):
         self.dynamic_model_names = []
         self.models = []
 
+        self.output_file_obj = open(output_file, 'w')
+
         print(colored('[RopodEnv] Launching roscore...', 'green'))
-        self.roscore_process = subprocess.Popen(['roscore', '-p', roscore_port])
+        self.roscore_process = subprocess.Popen(['roscore', '-p', roscore_port], stdout=self.output_file_obj)
         time.sleep(1)
         print(colored('[RopodEnv] Roscore launched!', 'green'))
 
         print(colored('[RopodEnv] Launching simulator...', 'green'))
         self.sim_process = subprocess.Popen(['roslaunch', '-p', roscore_port,
-                                             launch_file_path, 'gui:=false'])
+                                             launch_file_path, 'gui:=false'],
+                                             stdout=self.output_file_obj)
         print(colored('[RopodEnv] Simulator launched!', 'green'))
 
         print(colored('[RopodEnv] Waiting for service {0}'.format(reset_sim_srv_name), 'green'))
@@ -172,6 +181,7 @@ class RopodEnv(gym.Env):
         self.roscore_process.terminate()
         self.sim_process.wait()
         self.roscore_process.wait()
+        self.output_file_obj.close()
 
     def laser_cb(self, msg: LaserScan) -> None:
         '''Saves "msg" in self.laser_scan_msg.
