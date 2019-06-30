@@ -32,9 +32,9 @@ class RopodEnvConfig(object):
     world_path = os.environ['ROPOD_GYM_MODEL_PATH']
     env_to_config = {
         'square': EnvironmentDescription(os.path.join(world_path, 'worlds/square.world'),
-                                         ((-20, 0.), (0., 20.))),
+                                         ((-10, 10.), (-10., 10.))),
         'double_room': EnvironmentDescription(os.path.join(world_path, 'worlds/double_room.world'),
-                                         ((-20, 0.), (0., 20.)))
+                                         ((-2, 6.), (-2., 4.)))
     }
 
 
