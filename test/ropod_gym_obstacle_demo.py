@@ -20,11 +20,12 @@ def main():
     global RUNNING
     rospack = rospkg.RosPack()
     ropod_sim_pkg_path = rospack.get_path('ropod_sim_model')
-    launch_file = join(ropod_sim_pkg_path, 'launch/simulator/gazebo_simulator.launch')
+    launch_file = join(ropod_sim_pkg_path, 'launch/simulator/ropod_origin_gazebo_simulator.launch')
     number_of_steps = 500
 
     env = gym.make('ropod-nav-discrete-v0',
                    launch_file_path=launch_file,
+                   env_type='square',
                    number_of_obstacles=2)
     env.render(mode='human')
     time.sleep(5)
