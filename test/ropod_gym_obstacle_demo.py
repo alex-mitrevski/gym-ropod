@@ -41,7 +41,7 @@ def main():
             if not RUNNING:
                 break
             action = env.action_space.sample()
-            (goal, obs, reward, done) = env.step(action)
+            (obs, reward, done, goal) = env.step(action)
             print(colored('Step {0}: "{1}" -> reward {2}'.format(i, RopodNavActions.action_num_to_str[action],
                                                        reward), 'green'))
             episode_step_count += 1

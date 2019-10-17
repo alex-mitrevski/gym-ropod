@@ -88,10 +88,11 @@ class RopodNavDiscreteEnv(RopodEnv):
                                          Sequence[float], float, bool]:
         '''Publishes a velocity command message based on the given action.
         Returns:
-        * the goal pose in the format (x, y, theta)
         * a list of laser scan measurements
         * obtained reward after performing the action
         * an indicator about whether the episode is done
+        * an info dictionary containing a single key - "goal" -
+          with the goal pose in the format (x, y, theta) as its value
 
         Keyword arguments:
         action: int -- a navigation action to execute
@@ -113,7 +114,7 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         self.previous_action = action
 
-        return (self.goal_pose, observation, reward, done)
+        return (observation, reward, done, {'goal': self.goal_pose})
 
     def get_reward(self, action: int) -> float:
         '''Calculates the reward obtained by applying the given action
