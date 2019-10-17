@@ -165,11 +165,9 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.goal_pose = self.generate_goal_pose()
 
         # preparing the result
-        reward = self.get_reward(None)
         observation = [x if x != self.__inf else self.laser_scan_msg.range_max
                        for x in self.laser_scan_msg.ranges]
-        done = False
-        return (self.goal_pose, observation, reward, done)
+        return observation
 
     def generate_goal_pose(self) -> Tuple[float, float, float]:
         '''Randomly generates a goal pose in the environment, ensuring that
