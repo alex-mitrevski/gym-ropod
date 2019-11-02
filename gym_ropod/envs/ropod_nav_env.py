@@ -75,7 +75,7 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.number_of_obstacles = number_of_obstacles
 
         self.action_space = spaces.Discrete(len(RopodNavActions.action_num_to_str))
-        self.observation_space = spaces.Box(0., 5., (500,))
+        self.observation_space = spaces.Box(0., 5., (503,))
 
         self.collision_punishment = -1000.
         self.direction_change_punishment = -10.
@@ -88,7 +88,10 @@ class RopodNavDiscreteEnv(RopodEnv):
                                          Sequence[float], float, bool]:
         '''Publishes a velocity command message based on the given action.
         Returns:
-        * a list of laser scan measurements
+        * a list in which
+            * the first three elements represent the current goal the robot is pursuing
+              (pose in the form (x, y, theta))
+            * the subsequent elements represent the current laser scan measurements
         * obtained reward after performing the action
         * an indicator about whether the episode is done
         * an info dictionary containing a single key - "goal" -
@@ -114,7 +117,7 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         self.previous_action = action
 
-        return (observation, reward, done, {'goal': self.goal_pose})
+        return (list(self.goal_pose) + observation, reward, done, {'goal': self.goal_pose})
 
     def get_reward(self, action: int) -> float:
         '''Calculates the reward obtained by applying the given action
@@ -142,7 +145,10 @@ class RopodNavDiscreteEnv(RopodEnv):
         return reward
 
     def reset(self):
-        '''Resets the simulation environment.
+        '''Resets the simulation environment. The first three elements of the
+        returned observation represent the current goal the robot is pursuing
+        (pose in the form (x, y, theta)); the subsequent elements represent
+        the current laser measurements.
         '''
         super().reset()
 
@@ -167,7 +173,7 @@ class RopodNavDiscreteEnv(RopodEnv):
         # preparing the result
         observation = [x if x != self.__inf else self.laser_scan_msg.range_max
                        for x in self.laser_scan_msg.ranges]
-        return observation
+        return list(self.goal_pose) + observation
 
     def generate_goal_pose(self) -> Tuple[float, float, float]:
         '''Randomly generates a goal pose in the environment, ensuring that
