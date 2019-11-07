@@ -27,16 +27,18 @@ class RopodNavActions(object):
         2: 'right',
         3: 'left_turn',
         4: 'right_turn',
-        5: 'backward'
+        5: 'backward',
+        6: 'do_nothing'
     }
 
     action_to_vel = {
-        'forward': [0.1, 0.0, 0.0],
-        'left': [0.0, 0.1, 0.0],
-        'right': [0.0, -0.1, 0.0],
-        'left_turn': [0.1, 0.0, 0.1],
-        'right_turn': [0.1, 0.0, -0.1],
-        'backward': [-0.1, 0.0, 0.0]
+        'forward': [0.8, 0.0, 0.0],
+        'left': [0.0, 0.8, 0.0],
+        'right': [0.0, -0.8, 0.0],
+        'left_turn': [0.8, 0.0, 0.5],
+        'right_turn': [0.8, 0.0, -0.5],
+        'backward': [-0.8, 0.0, 0.0],
+        'do_nothing': [0.0, 0.0, 0.0]
     }
 
 
