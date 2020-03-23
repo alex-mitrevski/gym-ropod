@@ -157,15 +157,15 @@ class RopodEnv(gym.Env):
         that were dynamically added and resetting the state of all
         initial models.
         '''
-        env_models_to_remove = []
-        for model_name in self.environment_model_names:
-            model_removed = self.__delete_model(model_name)
-            if model_removed:
-                env_models_to_remove.append(model_name)
-            rospy.sleep(0.1)
-
-        for model_name in env_models_to_remove:
-            self.environment_model_names.remove(model_name)
+        # env_models_to_remove = []
+        # for model_name in self.environment_model_names:
+        #     model_removed = self.__delete_model(model_name)
+        #     if model_removed:
+        #         env_models_to_remove.append(model_name)
+        #     rospy.sleep(0.1)
+        #
+        # for model_name in env_models_to_remove:
+        #     self.environment_model_names.remove(model_name)
 
         dyn_models_to_remove = []
         for model_name in self.dynamic_model_names:
@@ -241,6 +241,7 @@ class RopodEnv(gym.Env):
 
         '''
         if model.name in self.environment_model_names:
+            return
             print(colored('[RopodEnv] Removing existing model "{0}"'.format(model.name), 'yellow'))
             self.__delete_model(model.name)
             self.environment_model_names.remove(model.name)
@@ -288,15 +289,15 @@ class RopodEnv(gym.Env):
         model_request.initial_pose.orientation.y = quat_orientation[2]
         model_request.initial_pose.orientation.z = quat_orientation[3]
 
-        print(colored('[RopodEnv] Inserting model "{0}"'.format(model.name), 'green'))
+        # print(colored('[RopodEnv] Inserting model "{0}"'.format(model.name), 'green'))
         try:
             rospy.wait_for_service(self.spawn_model_srv_name, timeout=0.5)
             response = self.spawn_model_proxy(model_request)
-            if response.success:
-                print(colored('[RopodEnv] Model "{0}" inserted'.format(model.name), 'green'))
-            else:
-                print(colored('[RopodEnv] Could not insert "{0}": {1}'.format(model.name,
-                                                                              response.status_message), 'red'))
+            # if response.success:
+            #     print(colored('[RopodEnv] Model "{0}" inserted'.format(model.name), 'green'))
+            # else:
+            #     print(colored('[RopodEnv] Could not insert "{0}": {1}'.format(model.name,
+            #                                                                   response.status_message), 'red'))
         except rospy.ServiceException as exc:
             print(colored('[RopodEnv] Service "{0}" not available'.format(self.spawn_model_srv_name), 'red'))
 
@@ -311,17 +312,17 @@ class RopodEnv(gym.Env):
         delete_model_request = gazebo_srvs.DeleteModelRequest()
         delete_model_request.model_name = model_name
 
-        print(colored('[RopodEnv] Deleting model "{0}"'.format(model_name), 'green'))
+        # print(colored('[RopodEnv] Deleting model "{0}"'.format(model_name), 'green'))
         try:
             rospy.wait_for_service(self.reset_sim_srv_name, timeout=0.5)
             response = self.delete_model_proxy(delete_model_request)
-            if response.success:
-                print(colored('[RopodEnv] Model "{0}" deleted'.format(model_name), 'green'))
-                return True
-            else:
-                print(colored('[RopodEnv] Could not delete "{0}": {1}'.format(model_name,
-                                                                              response.status_message), 'red'))
-                return False
+            # if response.success:
+            #     print(colored('[RopodEnv] Model "{0}" deleted'.format(model_name), 'green'))
+            #     return True
+            # else:
+            #     print(colored('[RopodEnv] Could not delete "{0}": {1}'.format(model_name,
+            #                                                                   response.status_message), 'red'))
+            #     return False
         except rospy.ServiceException as exc:
             print(colored('[RopodEnv] Service "{0}" not available'.format(self.reset_sim_srv_name), 'red'))
             return False
