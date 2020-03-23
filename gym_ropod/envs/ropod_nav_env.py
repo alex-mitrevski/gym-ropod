@@ -1,6 +1,7 @@
 from typing import Tuple, Sequence
 
 import os
+import time
 import numpy as np
 from gym import spaces
 
@@ -24,21 +25,13 @@ class RopodNavActions(object):
     action_num_to_str = {
         0: 'forward',
         1: 'left',
-        2: 'right',
-        3: 'left_turn',
-        4: 'right_turn',
-        5: 'backward',
-        6: 'do_nothing'
+        2: 'right'
     }
 
     action_to_vel = {
         'forward': [0.8, 0.0, 0.0],
         'left': [0.0, 0.8, 0.0],
-        'right': [0.0, -0.8, 0.0],
-        'left_turn': [0.8, 0.0, 0.5],
-        'right_turn': [0.8, 0.0, -0.5],
-        'backward': [-0.8, 0.0, 0.0],
-        'do_nothing': [0.0, 0.0, 0.0]
+        'right': [0.0, -0.8, 0.0]
     }
 
 
@@ -79,6 +72,8 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.action_space = spaces.Discrete(len(RopodNavActions.action_num_to_str))
         self.observation_space = spaces.Box(0., 5., (503,))
 
+        self.previous_distance = -1.
+        self.goal_reward = 1000.
         self.collision_punishment = -1000.
         self.direction_change_punishment = -10.
         self.__inf = float('inf')
@@ -119,7 +114,10 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         self.previous_action = action
 
-        return (list(self.goal_pose) + observation, reward, done, {'goal': self.goal_pose})
+        relative_goal_pose = (self.goal_pose[0] - self.robot_pose[0],
+                              self.goal_pose[1] - self.robot_pose[1],
+                              self.goal_pose[2] - self.robot_pose[2])
+        return (list(relative_goal_pose) + observation, reward, done, {'goal': self.goal_pose})
 
     def get_reward(self, action: int) -> float:
         '''Calculates the reward obtained by applying the given action
@@ -138,12 +136,20 @@ class RopodNavDiscreteEnv(RopodEnv):
         action: int -- an executed action
 
         '''
-        goal_dist = GeometryUtils.distance(self.robot_pose, self.goal_pose)
+        goal_dist = GeometryUtils.distance(self.robot_pose[0:2], self.goal_pose[0:2])
+        distance_change = self.previous_distance - goal_dist
+        self.previous_distance = goal_dist
+
         collision = 1 if self.robot_under_collision else 0
         direction_change = 1 if action != self.previous_action else 0
-        reward = 1. / goal_dist + \
-                 collision * self.collision_punishment + \
-                 direction_change * self.direction_change_punishment
+        reward = distance_change
+        if collision:
+            reward = self.collision_punishment
+        elif GeometryUtils.poses_equal(self.robot_pose, self.goal_pose):
+            reward = self.goal_reward
+        # reward = 1. / goal_dist + \
+        #          collision * self.collision_punishment + \
+        #          direction_change * self.direction_change_punishment
         return reward
 
     def reset(self):
@@ -169,30 +175,40 @@ class RopodNavDiscreteEnv(RopodEnv):
                                    visual_size=visual_size)
             self.insert_dynamic_model(model)
 
+        time.sleep(1.)
+
         # we generate a goal pose for the robot
+        self.robot_pose = (0., 0., 0.)
         self.goal_pose = self.generate_goal_pose()
+        self.previous_distance = GeometryUtils.distance((0., 0., 0.)[0:2], self.goal_pose[0:2])
 
         # preparing the result
         observation = [x if x != self.__inf else self.laser_scan_msg.range_max
                        for x in self.laser_scan_msg.ranges]
-        return list(self.goal_pose) + observation
+
+        relative_goal_pose = (self.goal_pose[0] - self.robot_pose[0],
+                              self.goal_pose[1] - self.robot_pose[1],
+                              self.goal_pose[2] - self.robot_pose[2])
+        return list(relative_goal_pose) + observation
 
     def generate_goal_pose(self) -> Tuple[float, float, float]:
         '''Randomly generates a goal pose in the environment, ensuring that
         the pose does not overlap any of the existing objects.
         '''
-        goal_pose_found = False
-        pose = None
-        while not goal_pose_found:
-            position_x = np.random.uniform(self.env_config.boundaries[0][0],
-                                           self.env_config.boundaries[0][1])
-            position_y = np.random.uniform(self.env_config.boundaries[1][0],
-                                           self.env_config.boundaries[1][1])
-            orientation_z = np.random.uniform(-np.pi, np.pi)
+        pose = (-4., -4., 0.)
 
-            pose = (position_x, position_y, orientation_z)
-            if not self.__pose_overlapping_models(pose):
-                goal_pose_found = True
+        # goal_pose_found = False
+        # pose = None
+        # while not goal_pose_found:
+        #     position_x = np.random.uniform(self.env_config.boundaries[0][0],
+        #                                    self.env_config.boundaries[0][1])
+        #     position_y = np.random.uniform(self.env_config.boundaries[1][0],
+        #                                    self.env_config.boundaries[1][1])
+        #     orientation_z = np.random.uniform(-np.pi, np.pi)
+        #
+        #     pose = (position_x, position_y, orientation_z)
+        #     if not self.__pose_overlapping_models(pose):
+        #         goal_pose_found = True
         return pose
 
     def sample_model_parameters(self) -> Tuple[Tuple, Tuple, Tuple]:
