@@ -19,7 +19,7 @@ class GeometryUtils(object):
         if len(pos1) != len(pos2):
             raise AssertionError('[GeometryUtils.distance] pos1 and pos2 need to have the same length')
 
-        return np.linalg.norm([np.square(pos1[i] - pos2[i]) for i in list(range(len(pos1)))])
+        return np.linalg.norm([(pos1[i] - pos2[i]) for i in list(range(len(pos1)))])
 
     @staticmethod
     def poses_equal(pose1: Tuple[float, float, float],
@@ -39,8 +39,10 @@ class GeometryUtils(object):
 
         '''
         return abs(pose1[0] - pose2[0]) < position_tolerance and \
-               abs(pose1[1] - pose2[1]) < position_tolerance and \
-               abs(pose1[2] - pose2[2]) < orientation_tolerance
+               abs(pose1[1] - pose2[1]) < position_tolerance
+        # return abs(pose1[0] - pose2[0]) < position_tolerance and \
+        #        abs(pose1[1] - pose2[1]) < position_tolerance and \
+        #        abs(pose1[2] - pose2[2]) < orientation_tolerance
 
     @staticmethod
     def pose_inside_model(pose: Tuple[float, float, float],
