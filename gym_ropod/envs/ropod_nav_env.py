@@ -24,14 +24,14 @@ class RopodNavActions(object):
     '''
     action_num_to_str = {
         0: 'forward',
-        1: 'left',
-        2: 'right'
+        1: 'left_turn',
+        2: 'right_turn'
     }
 
     action_to_vel = {
         'forward': [0.8, 0.0, 0.0],
-        'left': [0.0, 0.8, 0.0],
-        'right': [0.0, -0.8, 0.0]
+        'left_turn': [0.0, 0.0, 0.5],
+        'right_turn': [0.0, 0.0, 0.5]
     }
 
 
