@@ -180,6 +180,8 @@ class RopodNavDiscreteEnv(RopodEnv):
         # we generate a goal pose for the robot
         self.robot_pose = (0., 0., 0.)
         self.goal_pose = self.generate_goal_pose()
+        self.__visualise_goal_pose()
+
         self.previous_distance = GeometryUtils.distance((0., 0., 0.)[0:2], self.goal_pose[0:2])
 
         # preparing the result
@@ -250,3 +252,32 @@ class RopodNavDiscreteEnv(RopodEnv):
             if GeometryUtils.pose_inside_model(pose, model):
                 return True
         return False
+
+    def __visualise_goal_pose(self):
+        '''Displays a floating box above the goal.
+        '''
+        # we delete the goal model if it already exists
+        self._delete_model('goal')
+
+        # we set an arbitrary collision size so that the goal marker is visible
+        collision_size_x = 0.5
+        collision_size_y = 0.5
+        collision_size_z = 0.5
+        collision_size = (collision_size_x, collision_size_y, collision_size_z)
+        visual_size = collision_size
+
+        position_x = self.goal_pose[0]
+        position_y = self.goal_pose[1]
+
+        # we set the z position of the box high enough so that
+        # it cannot be picked up by the robot's sensors
+        position_z = 3.
+        pose = ((position_x, position_y, position_z), (0., 0., 0.))
+
+        model_name = 'goal'
+        model = PrimitiveModel(name='goal',
+                               sdf_path=os.path.join(self.model_path, 'models/box.sdf'),
+                               model_type='box', pose=pose,
+                               collision_size=collision_size,
+                               visual_size=visual_size)
+        self._insert_model(model)
