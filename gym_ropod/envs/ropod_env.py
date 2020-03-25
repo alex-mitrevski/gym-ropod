@@ -159,7 +159,7 @@ class RopodEnv(gym.Env):
         '''
         # env_models_to_remove = []
         # for model_name in self.environment_model_names:
-        #     model_removed = self.__delete_model(model_name)
+        #     model_removed = self._delete_model(model_name)
         #     if model_removed:
         #         env_models_to_remove.append(model_name)
         #     rospy.sleep(0.1)
@@ -169,7 +169,7 @@ class RopodEnv(gym.Env):
 
         dyn_models_to_remove = []
         for model_name in self.dynamic_model_names:
-            model_removed = self.__delete_model(model_name)
+            model_removed = self._delete_model(model_name)
             if model_removed:
                 dyn_models_to_remove.append(model_name)
             rospy.sleep(0.1)
@@ -243,10 +243,10 @@ class RopodEnv(gym.Env):
         if model.name in self.environment_model_names:
             return
             print(colored('[RopodEnv] Removing existing model "{0}"'.format(model.name), 'yellow'))
-            self.__delete_model(model.name)
+            self._delete_model(model.name)
             self.environment_model_names.remove(model.name)
 
-        self.__insert_model(model)
+        self._insert_model(model)
         self.environment_model_names.append(model.name)
         self.models.append(model)
 
@@ -260,14 +260,14 @@ class RopodEnv(gym.Env):
         '''
         if model.name in self.dynamic_model_names:
             print(colored('[RopodEnv] Removing existing model "{0}"'.format(model.name), 'yellow'))
-            self.__delete_model(model.name)
+            self._delete_model(model.name)
             self.dynamic_model_names.remove(model.name)
 
-        self.__insert_model(model)
+        self._insert_model(model)
         self.dynamic_model_names.append(model.name)
         self.models.append(model)
 
-    def __insert_model(self, model: ModelDescription) -> None:
+    def _insert_model(self, model: ModelDescription) -> None:
         '''Adds a model to the simulated environment.
 
         Keyword arguments:
@@ -301,7 +301,7 @@ class RopodEnv(gym.Env):
         except rospy.ServiceException as exc:
             print(colored('[RopodEnv] Service "{0}" not available'.format(self.spawn_model_srv_name), 'red'))
 
-    def __delete_model(self, model_name: str) -> bool:
+    def _delete_model(self, model_name: str) -> bool:
         '''Removes a model from the simulation. Returns True if the model
         is removed successfully and False otherwise.
 
