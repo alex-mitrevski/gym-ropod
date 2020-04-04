@@ -31,7 +31,7 @@ class RopodNavActions(object):
     action_to_vel = {
         'forward': [0.8, 0.0, 0.0],
         'left_turn': [0.0, 0.0, 0.5],
-        'right_turn': [0.0, 0.0, 0.5]
+        'right_turn': [0.0, 0.0, -0.5]
     }
 
 
@@ -70,7 +70,8 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.number_of_obstacles = number_of_obstacles
 
         self.action_space = spaces.Discrete(len(RopodNavActions.action_num_to_str))
-        self.observation_space = spaces.Box(0., 5., (503,))
+        # self.observation_space = spaces.Box(0., 5., (503,))
+        self.observation_space = spaces.Box(-np.inf, np.inf, (3,))
 
         self.previous_distance = -1.
         self.goal_reward = 1000.
@@ -117,7 +118,8 @@ class RopodNavDiscreteEnv(RopodEnv):
         relative_goal_pose = (self.goal_pose[0] - self.robot_pose[0],
                               self.goal_pose[1] - self.robot_pose[1],
                               self.goal_pose[2] - self.robot_pose[2])
-        return (list(relative_goal_pose) + observation, reward, done, {'goal': self.goal_pose})
+        # return (list(relative_goal_pose) + observation, reward, done, {'goal': self.goal_pose})
+        return (list(relative_goal_pose), reward, done, {'goal': self.goal_pose})
 
     def get_reward(self, action: int) -> float:
         '''Calculates the reward obtained by applying the given action
@@ -191,7 +193,8 @@ class RopodNavDiscreteEnv(RopodEnv):
         relative_goal_pose = (self.goal_pose[0] - self.robot_pose[0],
                               self.goal_pose[1] - self.robot_pose[1],
                               self.goal_pose[2] - self.robot_pose[2])
-        return list(relative_goal_pose) + observation
+        # return list(relative_goal_pose) + observation
+        return list(relative_goal_pose)
 
     def generate_goal_pose(self) -> Tuple[float, float, float]:
         '''Randomly generates a goal pose in the environment, ensuring that
