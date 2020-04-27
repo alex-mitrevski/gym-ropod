@@ -2,6 +2,7 @@ from typing import Tuple, Sequence
 
 import os
 import time
+import rospy
 import numpy as np
 from gym import spaces
 
@@ -104,6 +105,11 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.vel_msg.linear.x = vels[0]
         self.vel_msg.linear.y = vels[1]
         self.vel_msg.angular.z = vels[2]
+        self.vel_pub.publish(self.vel_msg)
+
+        # Bound distance for a step: naive method:
+        rospy.sleep(0.5)
+        self.vel_msg.linear.x, self.vel_msg.linear.y, self.vel_msg.angular.z = 0., 0., 0.
         self.vel_pub.publish(self.vel_msg)
 
         # preparing the result
