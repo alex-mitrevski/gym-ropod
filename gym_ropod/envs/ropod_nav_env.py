@@ -108,16 +108,22 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.vel_pub.publish(self.vel_msg)
 
         # Bound distance for a step: naive method:
-        rospy.sleep(0.5)
+        rospy.sleep(0.1)
         self.vel_msg.linear.x, self.vel_msg.linear.y, self.vel_msg.angular.z = 0., 0., 0.
         self.vel_pub.publish(self.vel_msg)
+
+        # wait a bit for the robot to come to a halt
+        # before recording an observation and reward
+        rospy.sleep(0.1)
 
         # preparing the result
         reward = self.get_reward(action)
         observation = [x if x != self.__inf else self.laser_scan_msg.range_max
                        for x in self.laser_scan_msg.ranges]
         done = self.robot_under_collision or GeometryUtils.poses_equal(self.robot_pose,
-                                                                       self.goal_pose)
+                                                                       self.goal_pose,
+                                                                       position_tolerance=0.5,
+                                                                       orientation_tolerance=0.5)
 
         self.previous_action = action
 
@@ -153,7 +159,9 @@ class RopodNavDiscreteEnv(RopodEnv):
         reward = distance_change
         if collision:
             reward = self.collision_punishment
-        elif GeometryUtils.poses_equal(self.robot_pose, self.goal_pose):
+        elif GeometryUtils.poses_equal(self.robot_pose, self.goal_pose,
+                                       position_tolerance=0.5,
+                                       orientation_tolerance=0.5):
             reward = self.goal_reward
         # reward = 1. / goal_dist + \
         #          collision * self.collision_punishment + \
@@ -166,6 +174,11 @@ class RopodNavDiscreteEnv(RopodEnv):
         (pose in the form (x, y, theta)); the subsequent elements represent
         the current laser measurements.
         '''
+        # stop the robot before resetting
+        self.vel_msg.linear.x, self.vel_msg.linear.y, self.vel_msg.angular.z = 0., 0., 0.
+        self.vel_pub.publish(self.vel_msg)
+        rospy.sleep(0.1)
+
         super().reset()
 
         # we add the static environment models
@@ -206,7 +219,7 @@ class RopodNavDiscreteEnv(RopodEnv):
         '''Randomly generates a goal pose in the environment, ensuring that
         the pose does not overlap any of the existing objects.
         '''
-        pose = (-4., -4., 0.)
+        pose = (4., 4., 0.)
 
         # goal_pose_found = False
         # pose = None
@@ -280,7 +293,7 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         # we set the z position of the box high enough so that
         # it cannot be picked up by the robot's sensors
-        position_z = 3.
+        position_z = 0.75
         pose = ((position_x, position_y, position_z), (0., 0., 0.))
 
         model_name = 'goal'
