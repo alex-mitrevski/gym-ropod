@@ -282,9 +282,9 @@ class RopodNavDiscreteEnv(RopodEnv):
         self._delete_model('goal')
 
         # we set an arbitrary collision size so that the goal marker is visible
-        collision_size_x = 0.5
-        collision_size_y = 0.5
-        collision_size_z = 0.5
+        collision_size_x = 0.05
+        collision_size_y = 0.05
+        collision_size_z = 0.05
         collision_size = (collision_size_x, collision_size_y, collision_size_z)
         visual_size = collision_size
 
