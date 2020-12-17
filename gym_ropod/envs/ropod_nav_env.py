@@ -1,6 +1,7 @@
 from typing import Tuple, Sequence
 
 import os
+import pickle
 import numpy as np
 from gym import spaces
 
@@ -42,6 +43,52 @@ class RopodNavActions(object):
     }
 
 
+class RopodNavActionsGP(object):
+    '''Defines the following navigation action mapping for the learned GP Aggregate
+    Primitive Model:
+    action_num_to_str: Dict[int, str] -- maps integers describing actions
+                                         (belonging to the action space
+                                          gym.spaces.Discrete(5) to descriptive
+                                          action names)
+    '''
+    action_num_to_str = {
+        0: 'forward',
+        1: 'left_rot_turn',
+        2: 'right_rot_turn',
+        3: 'left_arc_turn',
+        4: 'right_arc_turn'
+    }
+
+    def action_to_vel(action_str, gp_model, segment_length=5, sum_over_steps=True):
+        '''Samples a velocity command by sampling the GP model according to the given action.
+        Returns:
+        * the sampled action (an array of size (3,))
+
+        Keyword arguments:
+        action_str: str -- the name of the desired action
+        gp_model: dict -- a dict of dicts containing the learned GP models
+        segment_length: int -- the length (in timesteps) of the desired action sample
+        sum_over_steps: bool -- if True, the vel commands sampled from the model are summed
+                                across time (if segment_length > 1)
+        '''
+        x_space = np.arange(segment_length)[np.newaxis].T
+
+        sample_x = gp_model[action_str]['x'].sample_y(x_space, random_state=None).squeeze()
+        sample_y = gp_model[action_str]['y'].sample_y(x_space, random_state=None).squeeze()
+        sample_theta = gp_model[action_str]['theta'].sample_y(x_space, random_state=None).squeeze()
+
+        sampled_action = np.vstack((sample_x - sample_x[0],
+                                    sample_y - sample_y[0],
+                                    sample_theta - sample_theta[0])).T
+
+        if sum_over_steps:
+            sampled_action = sampled_action.sum(axis=0) / segment_length
+        else:
+            sampled_action = sampled_action / segment_length
+
+        return sampled_action
+
+
 class RopodNavDiscreteEnv(RopodEnv):
     '''A navigation environment for a ROPOD robot with a discrete action space.
 
@@ -51,7 +98,8 @@ class RopodNavDiscreteEnv(RopodEnv):
     '''
     def __init__(self, launch_file_path: str,
                  env_type: str='square',
-                 number_of_obstacles: int=0):
+                 number_of_obstacles: int=0,
+                 use_gp_primitives: bool=True):
         '''Throws an AssertionError if "env_name" is not in RopodEnvConfig.env_to_config or
         the environment variable "ROPOD_GYM_MODEL_PATH" is not set.
 
@@ -75,6 +123,7 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.model_path = os.environ['ROPOD_GYM_MODEL_PATH']
         self.env_config = RopodEnvConfig.env_to_config[env_type]
         self.number_of_obstacles = number_of_obstacles
+        self.use_gp_primitives = use_gp_primitives
 
         self.action_space = spaces.Discrete(len(RopodNavActions.action_num_to_str))
         self.observation_space = spaces.Box(0., 5., (503,))
@@ -85,6 +134,11 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         self.goal_pose = None
         self.previous_action = None
+
+        if self.use_gp_primitives:
+            gp_model_filepath = '/home/lucy/workspace/ropod-rl/data/learned_gp_aggregate_primitive_model_1.pkl'
+            self.primitive_gp_aggregate_model = self.__load_gp_model(gp_model_filepath)
+
 
     def step(self, action: int) -> Tuple[Tuple[float, float, float],
                                          Sequence[float], float, bool]:
@@ -104,7 +158,13 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         '''
         # applying the action
-        vels = RopodNavActions.action_to_vel[RopodNavActions.action_num_to_str[action]]
+        if self.use_gp_primitives:
+            vels = RopodNavActionsGP.action_to_vel(RopodNavActionsGP.action_num_to_str[action],
+                                                   self.primitive_gp_aggregate_model)
+        else:
+            vels = RopodNavActions.action_to_vel[RopodNavActions.action_num_to_str[action]]
+
+
         self.vel_msg.linear.x = vels[0]
         self.vel_msg.linear.y = vels[1]
         self.vel_msg.angular.z = vels[2]
@@ -234,3 +294,15 @@ class RopodNavDiscreteEnv(RopodEnv):
             if GeometryUtils.pose_inside_model(pose, model):
                 return True
         return False
+
+    def __load_gp_model(self, filepath):
+        '''Loads the learned GP aggregate primitive model from the designated
+        pickle file.
+        Returns:
+        * the dict of dicts containing the learned GP models
+
+        Keyword arguments:
+        filepath: str -- the path to the pkl file
+        '''
+        with open(filepath, 'rb') as f:
+            return pickle.load(f)
