@@ -229,7 +229,7 @@ class RopodEnv(gym.Env):
                                     msg.pose[i].orientation.y, msg.pose[i].orientation.z)
                 euler_orientation = tf.euler.quat2euler(quat_orientation)
                 orientation_z = euler_orientation[2]
-                self.robot_pose = (position_x, position_y, orientation_z)
+                self.robot_pose = (round(position_x, 1), round(position_y, 1), round(orientation_z, 1))
                 return
 
     def insert_env_model(self, model: ModelDescription) -> None:
