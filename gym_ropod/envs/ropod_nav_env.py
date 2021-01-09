@@ -1,4 +1,5 @@
 from typing import Tuple, Sequence
+from operator import sub
 
 import os
 import pickle
@@ -51,12 +52,20 @@ class RopodNavActionsGP(object):
                                           gym.spaces.Discrete(5) to descriptive
                                           action names)
     '''
+    # action_num_to_str = {
+    #     0: 'forward',
+    #     1: 'left_rot_turn',
+    #     2: 'right_rot_turn',
+    #     3: 'left_arc_turn',
+    #     4: 'right_arc_turn',
+    #     5: 'do_nothing'
+    # }
     action_num_to_str = {
         0: 'forward',
         1: 'left_rot_turn',
         2: 'right_rot_turn',
-        3: 'left_arc_turn',
-        4: 'right_arc_turn'
+        3: 'do_nothing',
+        # 4: 'backward'
     }
 
     def action_to_vel(action_str, gp_model, segment_length=5, sum_over_steps=True):
@@ -71,15 +80,21 @@ class RopodNavActionsGP(object):
         sum_over_steps: bool -- if True, the vel commands sampled from the model are summed
                                 across time (if segment_length > 1)
         '''
-        x_space = np.arange(segment_length)[np.newaxis].T
+        if action_str == 'do_nothing':
+            sampled_action = np.zeros((segment_length, 3))
+        elif action_str == 'backward':
+            sampled_action = np.array([[-0.5, 0., 0.],
+                                        [-0.5, 0., 0.]])
+        else:
+            x_space = np.arange(segment_length)[np.newaxis].T
 
-        sample_x = gp_model[action_str]['x'].sample_y(x_space, random_state=None).squeeze()
-        sample_y = gp_model[action_str]['y'].sample_y(x_space, random_state=None).squeeze()
-        sample_theta = gp_model[action_str]['theta'].sample_y(x_space, random_state=None).squeeze()
+            sample_x = gp_model[action_str]['x'].sample_y(x_space, random_state=None).squeeze()
+            sample_y = gp_model[action_str]['y'].sample_y(x_space, random_state=None).squeeze()
+            sample_theta = gp_model[action_str]['theta'].sample_y(x_space, random_state=None).squeeze()
 
-        sampled_action = np.vstack((sample_x - sample_x[0],
-                                    sample_y - sample_y[0],
-                                    sample_theta - sample_theta[0])).T
+            sampled_action = np.vstack((sample_x - sample_x[0],
+                                        sample_y - sample_y[0],
+                                        sample_theta - sample_theta[0])).T
 
         if sum_over_steps:
             sampled_action = sampled_action.sum(axis=0) / segment_length
@@ -125,18 +140,26 @@ class RopodNavDiscreteEnv(RopodEnv):
         self.number_of_obstacles = number_of_obstacles
         self.use_gp_primitives = use_gp_primitives
 
-        self.action_space = spaces.Discrete(len(RopodNavActions.action_num_to_str))
-        self.observation_space = spaces.Box(0., 5., (503,))
+        # self.action_space = spaces.Discrete(len(RopodNavActions.action_num_to_str))
+        self.action_space = spaces.Discrete(len(RopodNavActionsGP.action_num_to_str))
+        # self.observation_space = spaces.Box(0., 5., (503,))
+        self.observation_space = spaces.Box(-np.inf, np.inf, (3,))
+        # self.observation_space = spaces.Box(-np.inf, np.inf, (503,))
 
-        self.collision_punishment = -1000.
-        self.direction_change_punishment = -10.
+        self.goal_reward = 1000.
+        self.collision_punishment = -4000.
+        self.direction_change_punishment = 0.
+        self.failure_punishment = -500.
         self.__inf = float('inf')
+        self.current_timestep = 0
+        self.timestep_limit = 6000
+        self.reached_goal = False
 
         self.goal_pose = None
         self.previous_action = None
 
         if self.use_gp_primitives:
-            gp_model_filepath = '/home/lucy/workspace/ropod-rl/data/learned_gp_aggregate_primitive_model_1.pkl'
+            gp_model_filepath = '../../data/learned_gp_aggregate_primitive_model_2.pkl'
             self.primitive_gp_aggregate_model = self.__load_gp_model(gp_model_filepath)
 
 
@@ -164,22 +187,39 @@ class RopodNavDiscreteEnv(RopodEnv):
         else:
             vels = RopodNavActions.action_to_vel[RopodNavActions.action_num_to_str[action]]
 
-
         self.vel_msg.linear.x = vels[0]
         self.vel_msg.linear.y = vels[1]
         self.vel_msg.angular.z = vels[2]
         self.vel_pub.publish(self.vel_msg)
 
+        self.current_timestep += 1
+
         # preparing the result
         reward = self.get_reward(action)
         observation = [x if x != self.__inf else self.laser_scan_msg.range_max
                        for x in self.laser_scan_msg.ranges]
-        done = self.robot_under_collision or GeometryUtils.poses_equal(self.robot_pose,
-                                                                       self.goal_pose)
+        if not self.reached_goal:
+            self.reached_goal = GeometryUtils.poses_equal(self.robot_pose, self.goal_pose, 0.4, 3.)
+            if self.reached_goal:
+                print('\n\nReached goal!!')
+        episode_ended = self.episode_timestep_limit_reached()
+        # done = self.robot_under_collision or reached_goal or episode_ended
+        done = self.robot_under_collision or episode_ended
 
         self.previous_action = action
 
-        return (list(self.goal_pose) + observation, reward, done, {'goal': self.goal_pose})
+        relative_goal_pose = tuple(map(sub, self.goal_pose, self.robot_pose))
+        relative_goal_pose = np.array(list(relative_goal_pose))[np.newaxis]
+
+        return (relative_goal_pose, reward, done, {'goal': self.goal_pose})
+
+    def episode_timestep_limit_reached(self):
+        if self.current_timestep > self.timestep_limit:
+            print('Episode timestep limit reached! Resetting...')
+            self.current_timestep = 0
+            return True
+        else:
+            return False
 
     def get_reward(self, action: int) -> float:
         '''Calculates the reward obtained by applying the given action
@@ -198,12 +238,21 @@ class RopodNavDiscreteEnv(RopodEnv):
         action: int -- an executed action
 
         '''
-        goal_dist = GeometryUtils.distance(self.robot_pose, self.goal_pose)
-        collision = 1 if self.robot_under_collision else 0
-        direction_change = 1 if action != self.previous_action else 0
-        reward = 1. / goal_dist + \
-                 collision * self.collision_punishment + \
-                 direction_change * self.direction_change_punishment
+        distance = GeometryUtils.distance(self.robot_pose, self.goal_pose)
+        # goal_distance_reward = 1. / distance
+        goal_distance_reward = 1. / (2 * (distance ** 2))
+        # goal_distance_reward = np.exp(-distance) / distance
+        collision_reward = int(self.robot_under_collision) * self.collision_punishment
+        direction_change_reward =  int(action != self.previous_action) * self.direction_change_punishment
+        reward = goal_distance_reward + collision_reward + direction_change_reward
+
+        reached_goal = GeometryUtils.poses_equal(self.robot_pose, self.goal_pose, 0.4, 3.)
+        # if reached_goal and RopodNavActionsGP.action_num_to_str[action] == 'do_nothing':
+        if reached_goal:
+            reward += self.goal_reward
+
+        reward -= 1.0
+
         return reward
 
     def reset(self):
@@ -231,28 +280,69 @@ class RopodNavDiscreteEnv(RopodEnv):
 
         # we generate a goal pose for the robot
         self.goal_pose = self.generate_goal_pose()
+        self.current_timestep = 0
+        self.reached_goal = False
+
+        collision_size = (0.5, 0.5, 0.5)
+        visual_size = collision_size
+        model = PrimitiveModel(name='goal_marker',
+                               sdf_path=os.path.join(self.model_path, 'models/box.sdf'),
+                               model_type='box', pose=((self.goal_pose[0], self.goal_pose[1], 3.), 
+                                                        (0., 0., 0.)),
+                               collision_size=collision_size,
+                               visual_size=visual_size)
+        self.insert_dynamic_model(model)
 
         # preparing the result
         observation = [x if x != self.__inf else self.laser_scan_msg.range_max
                        for x in self.laser_scan_msg.ranges]
-        return list(self.goal_pose) + observation
+        relative_goal_pose = tuple(map(sub, self.goal_pose, self.robot_pose))
+        relative_goal_pose = np.array(list(relative_goal_pose))[np.newaxis]
+
+        return relative_goal_pose
 
     def generate_goal_pose(self) -> Tuple[float, float, float]:
         '''Randomly generates a goal pose in the environment, ensuring that
         the pose does not overlap any of the existing objects.
         '''
-        goal_pose_found = False
+        # goal_pose_found = False
         pose = None
-        while not goal_pose_found:
-            position_x = np.random.uniform(self.env_config.boundaries[0][0],
-                                           self.env_config.boundaries[0][1])
-            position_y = np.random.uniform(self.env_config.boundaries[1][0],
-                                           self.env_config.boundaries[1][1])
-            orientation_z = np.random.uniform(-np.pi, np.pi)
+        # while not goal_pose_found:
+        #     position_x = np.random.uniform(self.env_config.boundaries[0][0],
+        #                                    self.env_config.boundaries[0][1])
+        #     position_y = np.random.uniform(self.env_config.boundaries[1][0],
+        #                                    self.env_config.boundaries[1][1])
+        #     orientation_z = np.random.uniform(-np.pi, np.pi)
 
-            pose = (position_x, position_y, orientation_z)
-            if not self.__pose_overlapping_models(pose):
-                goal_pose_found = True
+        #     pose = (position_x, position_y, orientation_z)
+        #     if not self.__pose_overlapping_models(pose):
+        #         goal_pose_found = True
+        # return pose
+
+        # Curriculum 1:
+        pose_set = {'top_right': (1.0, 1.0, 0.0),
+                    'top_left': (-1.0, 1.0, 0.0),
+                    'bottom_right': (1.0, -1.0, 0.0),
+                    'bottom_left': (-1.0, -1.0, 0.0)}
+
+        # # Curriculum 2:
+        # pose_set = {'top_right': (2.0, 2.0, 0.0),
+        #             'top_left': (-2.0, 2.0, 0.0),
+        #             'bottom_right': (2.0, -2.0, 0.0),
+        #             'bottom_left': (-2.0, -2.0, 0.0)}
+
+        # # Curriculum 3:
+        # pose = None
+        # pose_set = {'right': (3.0, 0.0, 0.0),
+        #             'top_right': (2.0, 2.0, 0.0),
+        #             'top': (0.0, 3.0, 0.0),
+        #             'top_left': (-2.0, 2.0, 0.0),
+        #             'left': (-3.0, 0.0, 0.0),
+        #             'bottom_left': (-2.0, -2.0, 0.0),
+        #             'bottom': (0.0, -3.0, 0.0),
+        #             'bottom_right': (2.0, -2.0, 0.0)}
+
+        pose = pose_set[np.random.choice(list(pose_set.keys()))]
         return pose
 
     def sample_model_parameters(self) -> Tuple[Tuple, Tuple, Tuple]:
